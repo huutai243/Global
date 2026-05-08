@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.EntityFrameworkCore" Version="8.0.6" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="8.0.6" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Core\ECommerce.Catalog.Core.csproj" />
+    <ProjectReference Include="..\ECommerce.Identity.Core\ECommerce.Identity.Core.csproj" />
+    <ProjectReference Include="..\ECommerce.Inventory.Core\ECommerce.Inventory.Core.csproj" />
+    <ProjectReference Include="..\ECommerce.Ordering.Core\ECommerce.Ordering.Core.csproj" />
+    <ProjectReference Include="..\ECommerce.Payment.Core\ECommerce.Payment.Core.csproj" />
+  </ItemGroup>
+
+</Project>

@@ -1,0 +1,25 @@
+using ECommerce.Identity.Service.Features;
+using MediatR;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+
+namespace ECommerce.WebApi.Controllers;
+
+[ApiController]
+[Route("api/identity")]
+public class IdentityController(ISender sender) : ControllerBase
+{
+    [HttpPost("register")]
+    [AllowAnonymous]
+    public async Task<IActionResult> RegisterAsync(RegisterCustomerCommand command, CancellationToken cancellationToken)
+    {
+        return Ok(await sender.Send(command, cancellationToken));
+    }
+
+    [HttpPost("login")]
+    [AllowAnonymous]
+    public async Task<IActionResult> LoginAsync(LoginCommand command, CancellationToken cancellationToken)
+    {
+        return Ok(await sender.Send(command, cancellationToken));
+    }
+}
