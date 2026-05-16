@@ -1,0 +1,37 @@
+using ECommerce.Core.SharedLibs.Exceptions;
+using ECommerce.Core.SharedLibs.Interfaces;
+using ECommerce.Domain.Core.Catalog.Responses;
+using ECommerce.Domain.Service.Catalog.Mapping;
+using ECommerce.Infrastructure.Persistence;
+using MediatR;
+using Microsoft.EntityFrameworkCore;
+
+namespace ECommerce.Domain.Service.Catalog.UpdateProduct;
+
+public sealed class UpdateProductCommandHandler(ECommerceDbContext dbContext, IProductCache productCache)
+    : IRequestHandler<UpdateProductCommand, ProductResponse>
+{
+    public async Task<ProductResponse> Handle(UpdateProductCommand request, CancellationToken cancellationToken)
+    {
+        var product = await dbContext.Products.FirstOrDefaultAsync(item => item.Id == request.ProductId, cancellationToken)
+            ?? throw new NotFoundException("Product was not found.");
+
+        var categoryExists = await dbContext.Categories.AnyAsync(category => category.Id == request.CategoryId, cancellationToken);
+        if (!categoryExists)
+        {
+            throw new BusinessRuleException("Product must belong to an existing category.");
+        }
+
+        product.CategoryId = request.CategoryId;
+        product.Name = request.Name.Trim();
+        product.Description = request.Description;
+        product.Price = request.Price;
+        product.Status = request.Status;
+        product.UpdatedAt = DateTime.UtcNow;
+
+        await dbContext.SaveChangesAsync(cancellationToken);
+        await productCache.RemoveAsync($"product:{product.Id}", cancellationToken);
+
+        return CatalogMapping.MapProduct(product);
+    }
+}

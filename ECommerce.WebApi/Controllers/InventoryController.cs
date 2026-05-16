@@ -1,4 +1,4 @@
-using ECommerce.Inventory.Service.Features;
+using ECommerce.Domain.Service.Inventory.AdjustInventory;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;

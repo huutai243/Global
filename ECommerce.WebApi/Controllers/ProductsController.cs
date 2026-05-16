@@ -1,5 +1,9 @@
 using ECommerce.Domain.Core.Catalog.Models;
-using ECommerce.Catalog.Service.Features;
+using ECommerce.Domain.Service.Catalog.CreateProduct;
+using ECommerce.Domain.Service.Catalog.DeleteProduct;
+using ECommerce.Domain.Service.Catalog.GetProductById;
+using ECommerce.Domain.Service.Catalog.GetPublicProducts;
+using ECommerce.Domain.Service.Catalog.UpdateProduct;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;

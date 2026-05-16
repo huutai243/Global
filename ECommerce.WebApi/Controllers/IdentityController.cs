@@ -1,4 +1,5 @@
-using ECommerce.Identity.Service.Features;
+using ECommerce.Domain.Service.Identity.Login;
+using ECommerce.Domain.Service.Identity.Register;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;

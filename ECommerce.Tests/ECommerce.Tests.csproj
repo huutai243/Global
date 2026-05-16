@@ -14,8 +14,8 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\ECommerce.Core.SharedLibs\ECommerce.Core.SharedLibs.csproj" />
-    <ProjectReference Include="..\Service\ECommerce.Catalog.Service.csproj" />
     <ProjectReference Include="..\ECommerce.Domain.Core\ECommerce.Domain.Core.csproj" />
+    <ProjectReference Include="..\ECommerce.Domain.Service\ECommerce.Domain.Service.csproj" />
   </ItemGroup>
   <ItemGroup>
     <Using Include="Xunit" />
