@@ -4,9 +4,9 @@ using ECommerce.Core.SharedLibs.Interfaces;
 using ECommerce.Infrastructure.Persistence;
 using ECommerce.Infrastructure.Persistence.Events;
 using ECommerce.Infrastructure.Persistence.Models;
-using ECommerce.Ordering.Core.Models;
-using ECommerce.Payment.Core.Interfaces;
-using ECommerce.Payment.Core.Models;
+using ECommerce.Domain.Core.Ordering.Models;
+using ECommerce.Domain.Core.Payment.Interfaces;
+using ECommerce.Domain.Core.Payment.Models;
 using FluentValidation;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
@@ -74,7 +74,7 @@ public sealed class PayOrderCommandHandler(
             new PaymentProviderRequest(order.Id, request.Amount, "USD", request.PaymentMethod),
             cancellationToken);
 
-        var payment = new ECommerce.Payment.Core.Models.Payment
+        var payment = new ECommerce.Domain.Core.Payment.Models.Payment
         {
             Id = Guid.NewGuid(),
             OrderId = order.Id,

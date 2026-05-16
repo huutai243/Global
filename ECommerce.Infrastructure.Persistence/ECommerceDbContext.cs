@@ -1,9 +1,10 @@
-using ECommerce.Catalog.Core.Models;
-using ECommerce.Identity.Core.Models;
+using ECommerce.Domain.Core.Catalog.Models;
+using ECommerce.Domain.Core.Cart.Models;
+using ECommerce.Domain.Core.Identity.Models;
 using ECommerce.Infrastructure.Persistence.Models;
-using ECommerce.Inventory.Core.Models;
-using ECommerce.Ordering.Core.Models;
-using ECommerce.Payment.Core.Models;
+using ECommerce.Domain.Core.Inventory.Models;
+using ECommerce.Domain.Core.Ordering.Models;
+using ECommerce.Domain.Core.Payment.Models;
 using Microsoft.EntityFrameworkCore;
 
 namespace ECommerce.Infrastructure.Persistence;
@@ -30,7 +31,7 @@ public class ECommerceDbContext(DbContextOptions<ECommerceDbContext> options) : 
 
     public DbSet<OrderItem> OrderItems => Set<OrderItem>();
 
-    public DbSet<ECommerce.Payment.Core.Models.Payment> Payments => Set<ECommerce.Payment.Core.Models.Payment>();
+    public DbSet<ECommerce.Domain.Core.Payment.Models.Payment> Payments => Set<ECommerce.Domain.Core.Payment.Models.Payment>();
 
     public DbSet<OutboxMessage> OutboxMessages => Set<OutboxMessage>();
 
@@ -134,7 +135,7 @@ public class ECommerceDbContext(DbContextOptions<ECommerceDbContext> options) : 
             entity.Property(orderItem => orderItem.LineTotal).HasPrecision(18, 2);
         });
 
-        modelBuilder.Entity<ECommerce.Payment.Core.Models.Payment>(entity =>
+        modelBuilder.Entity<ECommerce.Domain.Core.Payment.Models.Payment>(entity =>
         {
             entity.HasKey(payment => payment.Id);
             entity.Property(payment => payment.Amount).HasPrecision(18, 2);

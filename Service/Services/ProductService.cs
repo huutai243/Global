@@ -1,8 +1,8 @@
-using ECommerce.Catalog.Core.Interfaces.Repositories;
-using ECommerce.Catalog.Core.Interfaces.Services;
-using ECommerce.Catalog.Core.Models;
-using ECommerce.Catalog.Core.Requests;
-using ECommerce.Catalog.Core.Responses;
+using ECommerce.Domain.Core.Catalog.Interfaces.Repositories;
+using ECommerce.Domain.Core.Catalog.Interfaces.Services;
+using ECommerce.Domain.Core.Catalog.Models;
+using ECommerce.Domain.Core.Catalog.Requests;
+using ECommerce.Domain.Core.Catalog.Responses;
 
 namespace ECommerce.Catalog.Service.Services;
 

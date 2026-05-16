@@ -1,4 +1,4 @@
-using ECommerce.Payment.Core.Interfaces;
+using ECommerce.Domain.Core.Payment.Interfaces;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace ECommerce.Infrastructure.Payment;

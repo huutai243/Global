@@ -1,5 +1,5 @@
-using ECommerce.Catalog.Core.Interfaces.Repositories;
-using ECommerce.Catalog.Core.Models;
+using ECommerce.Domain.Core.Catalog.Interfaces.Repositories;
+using ECommerce.Domain.Core.Catalog.Models;
 
 namespace ECommerce.Catalog.Data.Repositories;
 

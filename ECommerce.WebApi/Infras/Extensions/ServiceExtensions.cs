@@ -2,7 +2,7 @@ using System.Text;
 using ECommerce.Catalog.Service.Features;
 using ECommerce.Catalog.Service.Mapping;
 using ECommerce.Core.SharedLibs.Interfaces;
-using ECommerce.Identity.Core.Models;
+using ECommerce.Domain.Core.Identity.Models;
 using ECommerce.Identity.Service.Features;
 using ECommerce.Infrastructure.Kafka;
 using ECommerce.Infrastructure.Observability;

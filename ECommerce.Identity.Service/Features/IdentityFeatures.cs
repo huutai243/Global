@@ -1,7 +1,7 @@
 using System.Security.Cryptography;
 using System.Text;
 using ECommerce.Core.SharedLibs.Exceptions;
-using ECommerce.Identity.Core.Models;
+using ECommerce.Domain.Core.Identity.Models;
 using ECommerce.Infrastructure.Persistence;
 using ECommerce.Infrastructure.Security.Core;
 using FluentValidation;

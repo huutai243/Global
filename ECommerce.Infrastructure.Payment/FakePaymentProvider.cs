@@ -1,5 +1,5 @@
-using ECommerce.Payment.Core.Interfaces;
-using ECommerce.Payment.Core.Models;
+using ECommerce.Domain.Core.Payment.Interfaces;
+using ECommerce.Domain.Core.Payment.Models;
 
 namespace ECommerce.Infrastructure.Payment;
 

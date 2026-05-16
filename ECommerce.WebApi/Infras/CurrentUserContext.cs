@@ -1,6 +1,6 @@
 using System.Security.Claims;
 using ECommerce.Core.SharedLibs.Interfaces;
-using ECommerce.Identity.Core.Models;
+using ECommerce.Domain.Core.Identity.Models;
 
 namespace ECommerce.WebApi.Infras;
 

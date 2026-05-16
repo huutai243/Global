@@ -1,7 +1,7 @@
 using ECommerce.Infrastructure.Persistence;
 using ECommerce.Infrastructure.Persistence.Models;
-using ECommerce.Ordering.Core.Models;
-using ECommerce.Payment.Core.Models;
+using ECommerce.Domain.Core.Ordering.Models;
+using ECommerce.Domain.Core.Payment.Models;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;

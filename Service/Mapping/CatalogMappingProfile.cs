@@ -1,6 +1,6 @@
 using AutoMapper;
-using ECommerce.Catalog.Core.Models;
-using ECommerce.Catalog.Core.Responses;
+using ECommerce.Domain.Core.Catalog.Models;
+using ECommerce.Domain.Core.Catalog.Responses;
 
 namespace ECommerce.Catalog.Service.Mapping;
 

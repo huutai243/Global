@@ -1,11 +1,11 @@
-using ECommerce.Catalog.Core.Models;
-using ECommerce.Catalog.Core.Requests;
-using ECommerce.Catalog.Core.Responses;
+using ECommerce.Domain.Core.Catalog.Models;
+using ECommerce.Domain.Core.Catalog.Requests;
+using ECommerce.Domain.Core.Catalog.Responses;
 using ECommerce.Core.SharedLibs.Exceptions;
 using ECommerce.Core.SharedLibs.Interfaces;
 using ECommerce.Core.SharedLibs.Responses;
 using ECommerce.Infrastructure.Persistence;
-using ECommerce.Inventory.Core.Models;
+using ECommerce.Domain.Core.Inventory.Models;
 using FluentValidation;
 using MediatR;
 using Microsoft.EntityFrameworkCore;

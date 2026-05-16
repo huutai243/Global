@@ -1,6 +1,6 @@
 using ECommerce.Core.SharedLibs.Exceptions;
 using ECommerce.Infrastructure.Persistence;
-using ECommerce.Inventory.Core.Models;
+using ECommerce.Domain.Core.Inventory.Models;
 using FluentValidation;
 using MediatR;
 using Microsoft.EntityFrameworkCore;

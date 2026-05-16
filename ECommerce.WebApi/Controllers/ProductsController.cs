@@ -1,4 +1,4 @@
-using ECommerce.Catalog.Core.Models;
+using ECommerce.Domain.Core.Catalog.Models;
 using ECommerce.Catalog.Service.Features;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
