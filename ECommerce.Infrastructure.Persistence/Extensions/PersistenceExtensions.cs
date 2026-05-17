@@ -9,7 +9,7 @@ public static class PersistenceExtensions
     public static IServiceCollection AddDatabase(this IServiceCollection services, IConfiguration configuration)
     {
         services.AddDbContext<ECommerceDbContext>(options =>
-            options.UseSqlServer(configuration.GetConnectionString("ECommerceDatabase")));
+            options.UseSqlServer(configuration.GetConnectionString("ECommerceConnection")));
 
         return services;
     }
