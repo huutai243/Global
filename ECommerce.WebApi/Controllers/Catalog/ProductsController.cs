@@ -8,7 +8,7 @@ using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
-namespace ECommerce.WebApi.Controllers;
+namespace ECommerce.WebApi.Controllers.Catalog;
 
 [ApiController]
 [Route("api/products")]

@@ -2,7 +2,7 @@ using ECommerce.Core.SharedLibs.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
-namespace ECommerce.WebApi.Controllers;
+namespace ECommerce.WebApi.Controllers.Integration;
 
 [ApiController]
 [Route("api/admin/integrations")]

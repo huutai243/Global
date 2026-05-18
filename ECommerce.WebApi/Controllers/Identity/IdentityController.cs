@@ -5,7 +5,7 @@ using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
-namespace ECommerce.WebApi.Controllers;
+namespace ECommerce.WebApi.Controllers.Identity;
 
 [ApiController]
 [Route("api/identity")]
