@@ -3,7 +3,6 @@ using ECommerce.Core.SharedLibs.Interfaces;
 using ECommerce.Domain.Core.Catalog.Models;
 using ECommerce.Domain.Core.Catalog.Responses;
 using ECommerce.Domain.Core.Inventory.Models;
-using ECommerce.Domain.Service.Catalog.Mapping;
 using ECommerce.Infrastructure.Persistence;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
@@ -46,6 +45,14 @@ public sealed class CreateProductCommandHandler(ECommerceDbContext dbContext, IP
         await dbContext.SaveChangesAsync(cancellationToken);
         await productCache.RemoveAsync($"product:{product.Id}", cancellationToken);
 
-        return CatalogMapping.MapProduct(product);
+        return new ProductResponse
+        {
+            Id = product.Id,
+            CategoryId = product.CategoryId,
+            Name = product.Name,
+            Description = product.Description,
+            Price = product.Price,
+            Status = product.Status.ToString()
+        };
     }
 }

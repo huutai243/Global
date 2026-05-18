@@ -1,7 +1,6 @@
 using System.Text;
 using ECommerce.Domain.Service.Catalog.CreateProduct;
 using ECommerce.Domain.Service.Catalog.GetPublicProducts;
-using ECommerce.Domain.Service.Catalog.Mapping;
 using ECommerce.Core.SharedLibs.Interfaces;
 using ECommerce.Domain.Core.Identity.Models;
 using ECommerce.Domain.Service.Cart.AddCartItem;
@@ -35,7 +34,6 @@ public static class ServiceExtensions
         services.AddScoped<ICurrentUserContext, CurrentUserContext>();
         services.AddMediatRServices();
         services.AddValidationServices();
-        services.AddAutoMapperServices();
         services.AddAuthenticationServices(configuration);
         services.AddAuthorizationServices();
         services.AddRedisCache(configuration);
@@ -75,12 +73,6 @@ public static class ServiceExtensions
         services.AddScoped<IValidator<AddCartItemCommand>, AddCartItemCommandValidator>();
         services.AddScoped<IValidator<CheckoutCartCommand>, CheckoutCartCommandValidator>();
         services.AddScoped<IValidator<PayOrderCommand>, PayOrderCommandValidator>();
-        return services;
-    }
-
-    public static IServiceCollection AddAutoMapperServices(this IServiceCollection services)
-    {
-        services.AddAutoMapper(typeof(CatalogMappingProfile));
         return services;
     }
 
