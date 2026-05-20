@@ -15,10 +15,12 @@ public sealed class UpdateProductCommandHandler(ECommerceDbContext dbContext, IP
         var product = await dbContext.Products.FirstOrDefaultAsync(item => item.Id == request.ProductId, cancellationToken)
             ?? throw new NotFoundException("Product was not found.");
 
-        var categoryExists = await dbContext.Categories.AnyAsync(category => category.Id == request.CategoryId, cancellationToken);
-        if (!categoryExists)
+        var category = await dbContext.Categories
+            .AsNoTracking()
+            .FirstOrDefaultAsync(item => item.Id == request.CategoryId && item.IsActive, cancellationToken);
+        if (category is null)
         {
-            throw new BusinessRuleException("Product must belong to an existing category.");
+            throw new BusinessRuleException("Product must belong to an active category.");
         }
 
         product.CategoryId = request.CategoryId;
@@ -35,6 +37,7 @@ public sealed class UpdateProductCommandHandler(ECommerceDbContext dbContext, IP
         {
             Id = product.Id,
             CategoryId = product.CategoryId,
+            CategoryName = category.Name,
             Name = product.Name,
             Description = product.Description,
             Price = product.Price,

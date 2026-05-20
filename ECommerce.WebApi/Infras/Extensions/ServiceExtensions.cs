@@ -1,6 +1,9 @@
 using System.Text;
 using ECommerce.Domain.Service.Catalog.CreateProduct;
+using ECommerce.Domain.Service.Catalog.CreateCategory;
+using ECommerce.Domain.Service.Catalog.UpdateCategory;
 using ECommerce.Domain.Service.Catalog.GetPublicProducts;
+using ECommerce.Domain.Service.Catalog.UpdateProduct;
 using ECommerce.Core.SharedLibs.Interfaces;
 using ECommerce.Domain.Core.Identity.Models;
 using ECommerce.Domain.Service.Cart.AddCartItem;
@@ -67,6 +70,9 @@ public static class ServiceExtensions
     public static IServiceCollection AddValidationServices(this IServiceCollection services)
     {
         services.AddScoped<IValidator<CreateProductCommand>, CreateProductCommandValidator>();
+        services.AddScoped<IValidator<UpdateProductCommand>, UpdateProductCommandValidator>();
+        services.AddScoped<IValidator<CreateCategoryCommand>, CreateCategoryCommandValidator>();
+        services.AddScoped<IValidator<UpdateCategoryCommand>, UpdateCategoryCommandValidator>();
         services.AddScoped<IValidator<RegisterCustomerCommand>, RegisterCustomerCommandValidator>();
         services.AddScoped<IValidator<LoginCommand>, LoginCommandValidator>();
         services.AddScoped<IValidator<AdjustInventoryCommand>, AdjustInventoryCommandValidator>();

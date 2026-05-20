@@ -69,6 +69,7 @@ public class ProductService : IProductService
             Description = product.Description,
             Price = product.Price,
             CategoryId = product.CategoryId,
+            CategoryName = product.Category?.Name ?? string.Empty,
             Status = product.Status.ToString()
         };
     }

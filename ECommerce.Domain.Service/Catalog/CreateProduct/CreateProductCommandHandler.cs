@@ -14,10 +14,11 @@ public sealed class CreateProductCommandHandler(ECommerceDbContext dbContext, IP
 {
     public async Task<ProductResponse> Handle(CreateProductCommand request, CancellationToken cancellationToken)
     {
-        var categoryExists = await dbContext.Categories
-            .AnyAsync(category => category.Id == request.CategoryId && category.IsActive, cancellationToken);
+        var category = await dbContext.Categories
+            .AsNoTracking()
+            .FirstOrDefaultAsync(item => item.Id == request.CategoryId && item.IsActive, cancellationToken);
 
-        if (!categoryExists)
+        if (category is null)
         {
             throw new BusinessRuleException("Product must belong to an active category.");
         }
@@ -49,6 +50,7 @@ public sealed class CreateProductCommandHandler(ECommerceDbContext dbContext, IP
         {
             Id = product.Id,
             CategoryId = product.CategoryId,
+            CategoryName = category.Name,
             Name = product.Name,
             Description = product.Description,
             Price = product.Price,

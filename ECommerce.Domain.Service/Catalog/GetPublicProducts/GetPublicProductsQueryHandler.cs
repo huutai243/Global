@@ -17,7 +17,7 @@ public sealed class GetPublicProductsQueryHandler(ECommerceDbContext dbContext)
 
         var productsQuery = dbContext.Products
             .AsNoTracking()
-            .Where(product => product.Status == ProductStatus.Active);
+            .Where(product => product.Status == ProductStatus.Active && product.Category != null && product.Category.IsActive);
 
         if (!string.IsNullOrWhiteSpace(request.SearchTerm))
         {
@@ -54,6 +54,7 @@ public sealed class GetPublicProductsQueryHandler(ECommerceDbContext dbContext)
             {
                 Id = product.Id,
                 CategoryId = product.CategoryId,
+                CategoryName = product.Category!.Name,
                 Name = product.Name,
                 Description = product.Description,
                 Price = product.Price,

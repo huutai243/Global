@@ -34,11 +34,12 @@ public sealed class GetProductByIdQueryHandler(
 
         var product = await dbContext.Products
             .AsNoTracking()
-            .Where(item => item.Id == request.ProductId && item.Status == ProductStatus.Active)
+            .Where(item => item.Id == request.ProductId && item.Status == ProductStatus.Active && item.Category != null && item.Category.IsActive)
             .Select(item => new ProductResponse
             {
                 Id = item.Id,
                 CategoryId = item.CategoryId,
+                CategoryName = item.Category!.Name,
                 Name = item.Name,
                 Description = item.Description,
                 Price = item.Price,

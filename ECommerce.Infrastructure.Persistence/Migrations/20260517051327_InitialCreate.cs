@@ -130,7 +130,7 @@ namespace ECommerce.Infrastructure.Persistence.Migrations
                         column: x => x.UserId,
                         principalTable: "ApplicationUsers",
                         principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
+                        onDelete: ReferentialAction.Restrict);
                 });
 
             migrationBuilder.CreateTable(
