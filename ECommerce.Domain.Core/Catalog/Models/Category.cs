@@ -15,4 +15,5 @@ public class Category
     public DateTime? UpdatedAt { get; set; }
 
     public List<Product> Products { get; set; } = [];
+    public string? ImageUrl { get; set; }
 }

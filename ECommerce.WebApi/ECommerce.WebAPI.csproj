@@ -28,5 +28,6 @@
     <ProjectReference Include="..\ECommerce.Infrastructure.Redis\ECommerce.Infrastructure.Redis.csproj" />
     <ProjectReference Include="..\ECommerce.Infrastructure.Security.Core\ECommerce.Infrastructure.Security.Core.csproj" />
     <ProjectReference Include="..\ECommerce.Infrastructure.Security\ECommerce.Infrastructure.Security.csproj" />
+    <ProjectReference Include="..\ECommerce.Infrastructure.Storage\ECommerce.Infrastructure.Storage.csproj" />
   </ItemGroup>
 </Project>
