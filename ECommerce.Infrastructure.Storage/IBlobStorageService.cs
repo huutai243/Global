@@ -1,6 +1,6 @@
 ﻿namespace ECommerce.Infrastructure.Storage;
 
-public interface IFileStorageService
+public interface IBlobStorageService
 {
     Task<FileUploadResult> UploadAsync(FileUploadRequest request, CancellationToken cancellationToken);
 

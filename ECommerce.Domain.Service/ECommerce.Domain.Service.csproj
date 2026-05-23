@@ -15,5 +15,6 @@
     <ProjectReference Include="..\ECommerce.Domain.Core\ECommerce.Domain.Core.csproj" />
     <ProjectReference Include="..\ECommerce.Infrastructure.Persistence\ECommerce.Infrastructure.Persistence.csproj" />
     <ProjectReference Include="..\ECommerce.Infrastructure.Security.Core\ECommerce.Infrastructure.Security.Core.csproj" />
+    <ProjectReference Include="..\ECommerce.Infrastructure.Storage\ECommerce.Infrastructure.Storage.csproj" />
   </ItemGroup>
 </Project>

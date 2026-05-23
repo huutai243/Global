@@ -22,7 +22,7 @@ public static class StorageServiceCollectionExtensions
                 "Blob storage max file size must be greater than zero.")
             .ValidateOnStart();
 
-        services.AddSingleton<IFileStorageService, AzureBlobFileStorageService>();
+        services.AddSingleton<IBlobStorageService, AzureBlobFileStorageService>();
 
         return services;
     }

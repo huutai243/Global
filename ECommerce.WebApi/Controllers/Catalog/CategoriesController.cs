@@ -3,6 +3,7 @@ using ECommerce.Domain.Service.Catalog.DeleteCategory;
 using ECommerce.Domain.Service.Catalog.GetCategories;
 using ECommerce.Domain.Service.Catalog.GetCategoryById;
 using ECommerce.Domain.Service.Catalog.UpdateCategory;
+using ECommerce.Infrastructure.Storage;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -45,7 +46,7 @@ public class CategoriesController(ISender sender) : ControllerBase
         CancellationToken cancellationToken)
     {
         var response = await sender.Send(
-            new UpdateCategoryCommand(categoryId, request.Name, request.Description, request.IsActive),
+            new UpdateCategoryCommand(categoryId, request.Name, request.Description, request.IsActive, request.Image),
             cancellationToken);
 
         return Ok(response);
@@ -60,4 +61,4 @@ public class CategoriesController(ISender sender) : ControllerBase
     }
 }
 
-public sealed record UpdateCategoryRequest(string Name, string? Description, bool IsActive);
+public sealed record UpdateCategoryRequest(string Name, string? Description, bool IsActive, FileUploadRequest? Image);

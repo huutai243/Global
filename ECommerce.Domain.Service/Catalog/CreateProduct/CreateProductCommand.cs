@@ -1,4 +1,5 @@
 using ECommerce.Domain.Core.Catalog.Responses;
+using ECommerce.Infrastructure.Storage;
 using MediatR;
 
 namespace ECommerce.Domain.Service.Catalog.CreateProduct;
@@ -8,4 +9,5 @@ public sealed record CreateProductCommand(
     string Name,
     string? Description,
     decimal Price,
-    int InitialStock) : IRequest<ProductResponse>;
+    int InitialStock,
+    FileUploadRequest? Image) : IRequest<ProductResponse>;

@@ -4,6 +4,7 @@ using ECommerce.Domain.Service.Catalog.DeleteProduct;
 using ECommerce.Domain.Service.Catalog.GetProductById;
 using ECommerce.Domain.Service.Catalog.GetPublicProducts;
 using ECommerce.Domain.Service.Catalog.UpdateProduct;
+using ECommerce.Infrastructure.Storage;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -57,7 +58,7 @@ public class ProductsController(ISender sender) : ControllerBase
         CancellationToken cancellationToken)
     {
         var response = await sender.Send(
-            new UpdateProductCommand(productId, request.CategoryId, request.Name, request.Description, request.Price, request.Status),
+            new UpdateProductCommand(productId, request.CategoryId, request.Name, request.Description, request.Price, request.Status, request.Image),
             cancellationToken);
 
         return Ok(response);
@@ -72,4 +73,4 @@ public class ProductsController(ISender sender) : ControllerBase
     }
 }
 
-public sealed record UpdateProductRequest(Guid CategoryId, string Name, string? Description, decimal Price, ProductStatus Status);
+public sealed record UpdateProductRequest(Guid CategoryId, string Name, string? Description, decimal Price, ProductStatus Status, FileUploadRequest? Image);

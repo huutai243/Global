@@ -15,4 +15,6 @@ public class ProductResponse
     public decimal Price { get; set; }
 
     public string Status { get; set; } = string.Empty;
+    public string? ImageUrl { get; init; }
+
 }

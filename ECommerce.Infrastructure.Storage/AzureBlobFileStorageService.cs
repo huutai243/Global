@@ -4,7 +4,7 @@ using Microsoft.Extensions.Options;
 
 namespace ECommerce.Infrastructure.Storage;
 
-public sealed class AzureBlobFileStorageService : IFileStorageService
+public sealed class AzureBlobFileStorageService : IBlobStorageService
 {
     private readonly BlobStorageSettings _settings;
     private readonly BlobContainerClient _containerClient;
