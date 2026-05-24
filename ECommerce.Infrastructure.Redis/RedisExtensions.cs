@@ -6,12 +6,22 @@ namespace ECommerce.Infrastructure.Redis;
 
 public static class RedisExtensions
 {
-    public static IServiceCollection AddRedisCache(this IServiceCollection services, IConfiguration configuration)
+    public static IServiceCollection AddRedisCache(
+        this IServiceCollection services,
+        IConfiguration configuration)
     {
-        var settings = configuration.GetSection(nameof(RedisSettings)).Get<RedisSettings>() ?? new RedisSettings();
-        services.Configure<RedisSettings>(configuration.GetSection(nameof(RedisSettings)));
-        services.AddStackExchangeRedisCache(options => options.Configuration = settings.ConnectionString);
+        var redisSection = configuration.GetSection(nameof(RedisSettings));
+        var redisSettings = redisSection.Get<RedisSettings>() ?? new RedisSettings();
+
+        services.Configure<RedisSettings>(redisSection);
+
+        services.AddStackExchangeRedisCache(options =>
+        {
+            options.Configuration = redisSettings.ConnectionString;
+        });
+
         services.AddScoped<IProductCache, RedisProductCache>();
+
         return services;
     }
 }

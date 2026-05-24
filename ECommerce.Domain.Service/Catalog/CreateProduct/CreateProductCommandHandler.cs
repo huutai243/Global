@@ -1,3 +1,4 @@
+using ECommerce.Core.SharedLibs.Constants;
 using ECommerce.Core.SharedLibs.Exceptions;
 using ECommerce.Core.SharedLibs.Interfaces;
 using ECommerce.Domain.Core.Catalog.Models;
@@ -12,7 +13,6 @@ namespace ECommerce.Domain.Service.Catalog.CreateProduct;
 
 public sealed class CreateProductCommandHandler(
     ECommerceDbContext dbContext,
-    IProductCache productCache,
     IBlobStorageService blobStorageService)
     : IRequestHandler<CreateProductCommand, ProductResponse>
 {
@@ -71,10 +71,6 @@ public sealed class CreateProductCommandHandler(
         });
 
         await dbContext.SaveChangesAsync(cancellationToken);
-
-        await productCache.RemoveAsync(
-            $"product:{product.Id}",
-            cancellationToken);
 
         return new ProductResponse
         {

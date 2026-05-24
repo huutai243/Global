@@ -1,3 +1,4 @@
+using ECommerce.Core.SharedLibs.Constants;
 using ECommerce.Core.SharedLibs.Exceptions;
 using ECommerce.Core.SharedLibs.Interfaces;
 using ECommerce.Domain.Core.Catalog.Responses;
@@ -31,7 +32,7 @@ public sealed class UpdateProductCommandHandler(ECommerceDbContext dbContext, IP
         product.UpdatedAt = DateTime.UtcNow;
 
         await dbContext.SaveChangesAsync(cancellationToken);
-        await productCache.RemoveAsync($"product:{product.Id}", cancellationToken);
+        await productCache.RemoveAsync(CacheKeyConstants.ProductById(request.ProductId), cancellationToken);
 
         return new ProductResponse
         {

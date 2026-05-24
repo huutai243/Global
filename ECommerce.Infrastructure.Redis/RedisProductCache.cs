@@ -1,28 +1,82 @@
-using System.Text.Json;
 using ECommerce.Core.SharedLibs.Interfaces;
 using Microsoft.Extensions.Caching.Distributed;
+using Microsoft.Extensions.Options;
 
 namespace ECommerce.Infrastructure.Redis;
 
-public sealed class RedisProductCache(IDistributedCache distributedCache) : IProductCache
+public sealed class RedisProductCache : IProductCache
 {
-    public async Task<TValue?> GetAsync<TValue>(string key, CancellationToken cancellationToken = default)
+    private readonly IDistributedCache _distributedCache;
+    private readonly IJsonHelper _jsonHelper;
+    private readonly RedisSettings _redisSettings;
+
+    public RedisProductCache(
+        IDistributedCache distributedCache,
+        IJsonHelper jsonHelper,
+        IOptions<RedisSettings> redisOptions)
     {
-        var payload = await distributedCache.GetStringAsync(key, cancellationToken);
-        return payload is null ? default : JsonSerializer.Deserialize<TValue>(payload);
+        _distributedCache = distributedCache;
+        _jsonHelper = jsonHelper;
+        _redisSettings = redisOptions.Value;
     }
 
-    public Task SetAsync<TValue>(string key, TValue value, TimeSpan expiration, CancellationToken cancellationToken = default)
+    public async Task<TValue?> GetAsync<TValue>(string key, CancellationToken cancellationToken = default)
     {
-        return distributedCache.SetStringAsync(
-            key,
-            JsonSerializer.Serialize(value),
-            new DistributedCacheEntryOptions { AbsoluteExpirationRelativeToNow = expiration },
-            cancellationToken);
+        var payload = await _distributedCache.GetStringAsync(key, cancellationToken);
+
+        if (string.IsNullOrWhiteSpace(payload))
+        {
+            return default;
+        }
+
+        return _jsonHelper.Deserialize<TValue>(payload);
+    }
+
+    public async Task SetAsync<TValue>(string key, TValue value, TimeSpan? expiration = null, CancellationToken cancellationToken = default)
+    {
+        if (value is null)
+        {
+            return;
+        }
+
+        var payload = _jsonHelper.Serialize(value);
+
+        var cacheOptions = new DistributedCacheEntryOptions
+        {
+            AbsoluteExpirationRelativeToNow = expiration ?? TimeSpan.FromMinutes(
+                _redisSettings.DefaultExpirationInMinutes)
+        };
+
+        await _distributedCache.SetStringAsync(key, payload, cacheOptions, cancellationToken);
     }
 
     public Task RemoveAsync(string key, CancellationToken cancellationToken = default)
     {
-        return distributedCache.RemoveAsync(key, cancellationToken);
+        return _distributedCache.RemoveAsync(key, cancellationToken);
+    }
+
+    public async Task<TValue?> GetOrSetAsync<TValue>(
+        string key,
+        Func<CancellationToken, Task<TValue?>> factory,
+        TimeSpan? expiration = null,
+        CancellationToken cancellationToken = default)
+    {
+        var cachedValue = await GetAsync<TValue>(key, cancellationToken);
+
+        if (cachedValue is not null)
+        {
+            return cachedValue;
+        }
+
+        var value = await factory(cancellationToken);
+
+        if (value is null)
+        {
+            return default;
+        }
+
+        await SetAsync(key, value, expiration, cancellationToken);
+
+        return value;
     }
 }

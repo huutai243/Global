@@ -1,3 +1,4 @@
+using ECommerce.Core.SharedLibs.Constants;
 using ECommerce.Core.SharedLibs.Exceptions;
 using ECommerce.Core.SharedLibs.Interfaces;
 using ECommerce.Domain.Core.Catalog.Models;
@@ -17,7 +18,7 @@ public sealed class GetProductByIdQueryHandler(
 {
     public async Task<ProductResponse> Handle(GetProductByIdQuery request, CancellationToken cancellationToken)
     {
-        var cacheKey = $"product:{request.ProductId}";
+        var cacheKey = CacheKeyConstants.ProductById(request.ProductId);
 
         try
         {
