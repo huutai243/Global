@@ -16,8 +16,12 @@ public static class WebApplicationExtensions
         }
 
         app.UseHttpsRedirection();
+
+        app.UseCors("Frontend");
+
         app.UseAuthentication();
         app.UseAuthorization();
+
         app.MapHealthChecks("/health");
         app.MapControllers();
 
