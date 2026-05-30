@@ -1,14 +1,16 @@
-using System.Text;
-using ECommerce.Domain.Service.Catalog.CreateProduct;
-using ECommerce.Domain.Service.Catalog.CreateCategory;
-using ECommerce.Domain.Service.Catalog.UpdateCategory;
-using ECommerce.Domain.Service.Catalog.GetPublicProducts;
-using ECommerce.Domain.Service.Catalog.UpdateProduct;
 using ECommerce.Core.SharedLibs.Interfaces;
 using ECommerce.Domain.Core.Identity.Models;
 using ECommerce.Domain.Service.Cart.AddCartItem;
+using ECommerce.Domain.Service.Catalog.CreateCategory;
+using ECommerce.Domain.Service.Catalog.CreateProduct;
+using ECommerce.Domain.Service.Catalog.GetPublicProducts;
+using ECommerce.Domain.Service.Catalog.UpdateCategory;
+using ECommerce.Domain.Service.Catalog.UpdateProduct;
 using ECommerce.Domain.Service.Identity.Login;
 using ECommerce.Domain.Service.Identity.Register;
+using ECommerce.Domain.Service.Inventory.AdjustInventory;
+using ECommerce.Domain.Service.Ordering.CheckoutCart;
+using ECommerce.Domain.Service.Payment.PayOrder;
 using ECommerce.Infrastructure.Kafka;
 using ECommerce.Infrastructure.Observability;
 using ECommerce.Infrastructure.Payment;
@@ -17,14 +19,13 @@ using ECommerce.Infrastructure.RabbitMq;
 using ECommerce.Infrastructure.Redis;
 using ECommerce.Infrastructure.Security;
 using ECommerce.Infrastructure.Security.Core;
-using ECommerce.Domain.Service.Inventory.AdjustInventory;
-using ECommerce.Domain.Service.Ordering.CheckoutCart;
-using ECommerce.Domain.Service.Payment.PayOrder;
+using ECommerce.Infrastructure.Storage;
 using ECommerce.WebApi.Infras;
 using FluentValidation;
 using MediatR;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
+using System.Text;
 
 namespace ECommerce.WebApi.Infras.Extensions;
 
@@ -33,6 +34,7 @@ public static class ServiceExtensions
     public static IServiceCollection AddApplicationServices(this IServiceCollection services, IConfiguration configuration)
     {
         services.AddDatabase(configuration);
+        services.AddBlobStorage(configuration);
         services.AddObservability();
         services.AddScoped<ICurrentUserContext, CurrentUserContext>();
         services.AddMediatRServices();

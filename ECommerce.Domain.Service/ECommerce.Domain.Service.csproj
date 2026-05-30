@@ -17,4 +17,7 @@
     <ProjectReference Include="..\ECommerce.Infrastructure.Security.Core\ECommerce.Infrastructure.Security.Core.csproj" />
     <ProjectReference Include="..\ECommerce.Infrastructure.Storage\ECommerce.Infrastructure.Storage.csproj" />
   </ItemGroup>
+  <ItemGroup>
+    <Folder Include="Catalog\Services\" />
+  </ItemGroup>
 </Project>

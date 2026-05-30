@@ -4,6 +4,7 @@ using ECommerce.Domain.Service.Catalog.GetCategories;
 using ECommerce.Domain.Service.Catalog.GetCategoryById;
 using ECommerce.Domain.Service.Catalog.UpdateCategory;
 using ECommerce.Infrastructure.Storage;
+using ECommerce.WebAPI.Controllers.Catalog;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -23,19 +24,30 @@ public class CategoriesController(ISender sender) : ControllerBase
         return Ok(await sender.Send(new GetCategoriesQuery(includeInactive), cancellationToken));
     }
 
-    [HttpGet("{categoryId:guid}")]
+    [HttpGet("{categoryId:guid}", Name = nameof(GetCategoryByIdAsync))]
     [AllowAnonymous]
-    public async Task<IActionResult> GetCategoryByIdAsync(Guid categoryId, CancellationToken cancellationToken)
+    public async Task<IActionResult> GetCategoryByIdAsync(
+    [FromRoute] Guid categoryId,
+    CancellationToken cancellationToken)
     {
         return Ok(await sender.Send(new GetCategoryByIdQuery(categoryId), cancellationToken));
     }
 
     [HttpPost]
-    [Authorize(Roles = "Admin")]
-    public async Task<IActionResult> CreateCategoryAsync(CreateCategoryCommand command, CancellationToken cancellationToken)
+    //[Authorize(Roles = "Admin")]
+    [Consumes("multipart/form-data")]
+    public async Task<IActionResult> CreateCategoryAsync(
+        [FromForm] CreateCategoryFormRequest request,
+        CancellationToken cancellationToken)
     {
+        var command = new CreateCategoryCommand(
+            request.Name,
+            request.Description,
+            FormFileUploadRequestFactory.Create(request.Image, "categories"));
+
         var response = await sender.Send(command, cancellationToken);
-        return CreatedAtAction(nameof(GetCategoryByIdAsync), new { categoryId = response.Id }, response);
+
+        return CreatedAtRoute(nameof(GetCategoryByIdAsync), new { categoryId = response.Id }, response);
     }
 
     [HttpPut("{categoryId:guid}")]

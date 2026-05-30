@@ -5,6 +5,7 @@ using ECommerce.Domain.Service.Catalog.GetProductById;
 using ECommerce.Domain.Service.Catalog.GetPublicProducts;
 using ECommerce.Domain.Service.Catalog.UpdateProduct;
 using ECommerce.Infrastructure.Storage;
+using ECommerce.WebAPI.Controllers.Catalog;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -35,19 +36,33 @@ public class ProductsController(ISender sender) : ControllerBase
         return Ok(response);
     }
 
-    [HttpGet("{productId:guid}")]
+    [HttpGet("{productId:guid}", Name = nameof(GetProductByIdAsync))]
     [AllowAnonymous]
-    public async Task<IActionResult> GetProductByIdAsync(Guid productId, CancellationToken cancellationToken)
+    public async Task<IActionResult> GetProductByIdAsync(
+    [FromRoute] Guid productId,
+    CancellationToken cancellationToken)
     {
         return Ok(await sender.Send(new GetProductByIdQuery(productId), cancellationToken));
     }
 
     [HttpPost]
-    [Authorize(Roles = "Admin")]
-    public async Task<IActionResult> CreateProductAsync(CreateProductCommand command, CancellationToken cancellationToken)
+    //[Authorize(Roles = "Admin")]
+    [Consumes("multipart/form-data")]
+    public async Task<IActionResult> CreateProductAsync(
+    [FromForm] CreateProductFormRequest request,
+    CancellationToken cancellationToken)
     {
+        var command = new CreateProductCommand(
+            request.CategoryId,
+            request.Name,
+            request.Description,
+            request.Price,
+            request.InitialStock,
+            FormFileUploadRequestFactory.Create(request.Image, "products"));
+
         var response = await sender.Send(command, cancellationToken);
-        return CreatedAtAction(nameof(GetProductByIdAsync), new { productId = response.Id }, response);
+
+        return CreatedAtRoute(nameof(GetProductByIdAsync), new { productId = response.Id }, response);
     }
 
     [HttpPut("{productId:guid}")]
