@@ -1,6 +1,6 @@
 ﻿using ECommerce.Infrastructure.Storage;
 
-namespace ECommerce.WebAPI.Controllers.Catalog;
+namespace ECommerce.WebAPI.Controllers.Factories;
 
 public static class FormFileUploadRequestFactory
 {

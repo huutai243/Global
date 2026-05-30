@@ -1,10 +1,12 @@
+using ECommerce.Domain.Core.Catalog.Responses;
+using ECommerce.Domain.Core.Identity.Models;
 using ECommerce.Domain.Service.Catalog.CreateCategory;
 using ECommerce.Domain.Service.Catalog.DeleteCategory;
 using ECommerce.Domain.Service.Catalog.GetCategories;
 using ECommerce.Domain.Service.Catalog.GetCategoryById;
 using ECommerce.Domain.Service.Catalog.UpdateCategory;
-using ECommerce.Infrastructure.Storage;
-using ECommerce.WebAPI.Controllers.Catalog;
+using ECommerce.WebAPI.Controllers.Factories;
+using ECommerce.WebAPI.Controllers.Request;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -13,32 +15,37 @@ namespace ECommerce.WebApi.Controllers.Catalog;
 
 [ApiController]
 [Route("api/categories")]
-public class CategoriesController(ISender sender) : ControllerBase
+public sealed class CategoriesController(ISender sender) : ControllerBase
 {
     [HttpGet]
     [AllowAnonymous]
-    public async Task<IActionResult> GetCategoriesAsync(
-        [FromQuery] bool includeInactive = false,
-        CancellationToken cancellationToken = default)
+    [ProducesResponseType(typeof(IReadOnlyCollection<CategoryResponse>), StatusCodes.Status200OK)]
+    public async Task<ActionResult<IReadOnlyCollection<CategoryResponse>>> GetCategoriesAsync([FromQuery] bool includeInactive = false, CancellationToken cancellationToken = default)
     {
-        return Ok(await sender.Send(new GetCategoriesQuery(includeInactive), cancellationToken));
+        var response = await sender.Send(new GetCategoriesQuery(includeInactive), cancellationToken);
+
+        return Ok(response);
     }
 
     [HttpGet("{categoryId:guid}", Name = nameof(GetCategoryByIdAsync))]
     [AllowAnonymous]
-    public async Task<IActionResult> GetCategoryByIdAsync(
-    [FromRoute] Guid categoryId,
-    CancellationToken cancellationToken)
+    [ProducesResponseType(typeof(CategoryResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<CategoryResponse>> GetCategoryByIdAsync([FromRoute] Guid categoryId, CancellationToken cancellationToken)
     {
-        return Ok(await sender.Send(new GetCategoryByIdQuery(categoryId), cancellationToken));
+        var response = await sender.Send(new GetCategoryByIdQuery(categoryId), cancellationToken);
+
+        return Ok(response);
     }
 
     [HttpPost]
-    //[Authorize(Roles = "Admin")]
+    [Authorize(Roles = UserRoles.Admin)]
     [Consumes("multipart/form-data")]
-    public async Task<IActionResult> CreateCategoryAsync(
-        [FromForm] CreateCategoryFormRequest request,
-        CancellationToken cancellationToken)
+    [ProducesResponseType(typeof(CategoryResponse), StatusCodes.Status201Created)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    public async Task<ActionResult<CategoryResponse>> CreateCategoryAsync([FromForm] CreateCategoryFormRequest request, CancellationToken cancellationToken)
     {
         var command = new CreateCategoryCommand(
             request.Name,
@@ -51,26 +58,40 @@ public class CategoriesController(ISender sender) : ControllerBase
     }
 
     [HttpPut("{categoryId:guid}")]
-    [Authorize(Roles = "Admin")]
-    public async Task<IActionResult> UpdateCategoryAsync(
-        Guid categoryId,
-        UpdateCategoryRequest request,
+    [Authorize(Roles = UserRoles.Admin)]
+    [Consumes("multipart/form-data")]
+    [ProducesResponseType(typeof(CategoryResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<CategoryResponse>> UpdateCategoryAsync(
+        [FromRoute] Guid categoryId,
+        [FromForm] UpdateCategoryFormRequest request,
         CancellationToken cancellationToken)
     {
-        var response = await sender.Send(
-            new UpdateCategoryCommand(categoryId, request.Name, request.Description, request.IsActive, request.Image),
-            cancellationToken);
+        var command = new UpdateCategoryCommand(
+            categoryId,
+            request.Name,
+            request.Description,
+            request.IsActive,
+            FormFileUploadRequestFactory.Create(request.Image, "categories"));
+
+        var response = await sender.Send(command, cancellationToken);
 
         return Ok(response);
     }
 
     [HttpDelete("{categoryId:guid}")]
-    [Authorize(Roles = "Admin")]
-    public async Task<IActionResult> DeleteCategoryAsync(Guid categoryId, CancellationToken cancellationToken)
+    [Authorize(Roles = UserRoles.Admin)]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> DeleteCategoryAsync([FromRoute] Guid categoryId, CancellationToken cancellationToken)
     {
         await sender.Send(new DeleteCategoryCommand(categoryId), cancellationToken);
+
         return NoContent();
     }
 }
-
-public sealed record UpdateCategoryRequest(string Name, string? Description, bool IsActive, FileUploadRequest? Image);

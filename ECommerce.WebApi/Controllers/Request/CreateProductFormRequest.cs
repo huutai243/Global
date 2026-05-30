@@ -1,4 +1,4 @@
-﻿namespace ECommerce.WebAPI.Controllers.Catalog;
+﻿namespace ECommerce.WebAPI.Controllers.Request;
 public sealed class CreateProductFormRequest
 {
     public Guid CategoryId { get; init; }

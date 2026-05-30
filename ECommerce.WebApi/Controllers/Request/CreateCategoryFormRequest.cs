@@ -1,4 +1,4 @@
-﻿namespace ECommerce.WebAPI.Controllers.Catalog;
+﻿namespace ECommerce.WebAPI.Controllers.Request;
 public sealed class CreateCategoryFormRequest
 {
     public string Name { get; init; } = string.Empty;
