@@ -15,7 +15,7 @@ public static class WebApplicationExtensions
             app.UseSwaggerUI();
         }
 
-        app.UseHttpsRedirection();
+        //app.UseHttpsRedirection();
 
         app.UseCors("Frontend");
 
