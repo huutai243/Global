@@ -10,11 +10,13 @@ public class CartItem
 
     public string ProductNameSnapshot { get; set; } = string.Empty;
 
+    public string? ProductImageUrlSnapshot { get; set; }
+
     public decimal UnitPriceSnapshot { get; set; }
 
     public int Quantity { get; set; }
 
-    public decimal LineTotal { get; set; }
+    public decimal LineTotal => UnitPriceSnapshot * Quantity;
 
     public Cart? Cart { get; set; }
 }

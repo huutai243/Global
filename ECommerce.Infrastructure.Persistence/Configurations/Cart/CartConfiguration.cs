@@ -10,11 +10,20 @@ public sealed class CartConfiguration : IEntityTypeConfiguration<ECommerce.Domai
     {
         entity.HasKey(cart => cart.Id);
 
+        entity.Property(cart => cart.CustomerId)
+            .IsRequired();
+
+        entity.Property(cart => cart.CreatedAt)
+            .IsRequired();
+
+        entity.Property(cart => cart.UpdatedAt);
+
         entity.HasIndex(cart => cart.CustomerId)
             .IsUnique();
 
         entity.HasMany(cart => cart.Items)
             .WithOne(cartItem => cartItem.Cart)
-            .HasForeignKey(cartItem => cartItem.CartId);
+            .HasForeignKey(cartItem => cartItem.CartId)
+            .OnDelete(DeleteBehavior.Cascade);
     }
 }

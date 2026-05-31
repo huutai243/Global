@@ -1,7 +1,8 @@
 using ECommerce.Core.SharedLibs.Exceptions;
 using ECommerce.Core.SharedLibs.Interfaces;
-using ECommerce.Domain.Core.Catalog.Models;
 using ECommerce.Domain.Core.Cart.Models;
+using ECommerce.Domain.Core.Cart.Responses;
+using ECommerce.Domain.Core.Catalog.Models;
 using ECommerce.Infrastructure.Persistence;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
@@ -17,10 +18,15 @@ public sealed class AddCartItemCommandHandler(
 {
     public async Task<CartResponse> Handle(AddCartItemCommand request, CancellationToken cancellationToken)
     {
-        EnsureCustomerAccess(request.CustomerId, currentUserContext);
+        var customerId = GetCurrentCustomerId();
+
+        if (request.Quantity <= 0)
+        {
+            throw new BusinessRuleException("Quantity must be greater than zero.");
+        }
 
         var product = await dbContext.Products
-            .FirstOrDefaultAsync(item => item.Id == request.ProductId, cancellationToken)
+            .FirstOrDefaultAsync(product => product.Id == request.ProductId, cancellationToken)
             ?? throw new NotFoundException("Product was not found.");
 
         if (product.Status != ProductStatus.Active)
@@ -28,7 +34,8 @@ public sealed class AddCartItemCommandHandler(
             throw new BusinessRuleException("Cannot add inactive product to cart.");
         }
 
-        var inventory = await dbContext.InventoryItems.FirstOrDefaultAsync(item => item.ProductId == product.Id, cancellationToken)
+        var inventory = await dbContext.InventoryItems
+            .FirstOrDefaultAsync(inventoryItem => inventoryItem.ProductId == product.Id, cancellationToken)
             ?? throw new BusinessRuleException("Product inventory is missing.");
 
         if (inventory.AvailableQuantity < request.Quantity)
@@ -37,21 +44,23 @@ public sealed class AddCartItemCommandHandler(
         }
 
         var cart = await dbContext.Carts
-            .Include(item => item.Items)
-            .FirstOrDefaultAsync(item => item.CustomerId == request.CustomerId, cancellationToken);
+            .Include(cart => cart.Items)
+            .FirstOrDefaultAsync(cart => cart.CustomerId == customerId, cancellationToken);
 
         if (cart is null)
         {
             cart = new ECommerce.Domain.Core.Cart.Models.Cart
             {
                 Id = Guid.NewGuid(),
-                CustomerId = request.CustomerId,
+                CustomerId = customerId,
                 CreatedAt = DateTime.UtcNow
             };
+
             dbContext.Carts.Add(cart);
         }
 
-        var existingItem = cart.Items.FirstOrDefault(item => item.ProductId == product.Id);
+        var existingItem = cart.Items.FirstOrDefault(cartItem => cartItem.ProductId == product.Id);
+
         if (existingItem is null)
         {
             cart.Items.Add(new CartItem
@@ -60,47 +69,42 @@ public sealed class AddCartItemCommandHandler(
                 CartId = cart.Id,
                 ProductId = product.Id,
                 ProductNameSnapshot = product.Name,
+                ProductImageUrlSnapshot = product.ImageUrl,
                 UnitPriceSnapshot = product.Price,
-                Quantity = request.Quantity,
-                LineTotal = product.Price * request.Quantity
+                Quantity = request.Quantity
             });
         }
         else
         {
             var newQuantity = existingItem.Quantity + request.Quantity;
+
             if (inventory.AvailableQuantity < newQuantity)
             {
                 throw new BusinessRuleException("Insufficient stock.");
             }
 
             existingItem.Quantity = newQuantity;
-            existingItem.LineTotal = existingItem.UnitPriceSnapshot * newQuantity;
         }
 
         cart.UpdatedAt = DateTime.UtcNow;
+
         await dbContext.SaveChangesAsync(cancellationToken);
 
-        logger.LogInformation("Add cart item for customer {CustomerId} and product {ProductId}", request.CustomerId, request.ProductId);
-        return MapCart(cart);
+        logger.LogInformation(
+            "Added cart item for customer {CustomerId} and product {ProductId}",
+            customerId,
+            request.ProductId);
+
+        return CartMapper.MapToResponse(cart);
     }
 
-    private static void EnsureCustomerAccess(Guid customerId, ICurrentUserContext currentUserContext)
+    private Guid GetCurrentCustomerId()
     {
-        if (!currentUserContext.IsAdmin && currentUserContext.CustomerId != customerId)
+        if (currentUserContext.CustomerId is null || currentUserContext.CustomerId == Guid.Empty)
         {
-            throw new ForbiddenAccessException("Customer can only access own cart.");
+            throw new ForbiddenAccessException("Customer context is missing.");
         }
-    }
 
-    private static CartResponse MapCart(ECommerce.Domain.Core.Cart.Models.Cart cart)
-    {
-        var items = cart.Items.Select(item => new CartItemResponse(
-            item.ProductId,
-            item.ProductNameSnapshot,
-            item.UnitPriceSnapshot,
-            item.Quantity,
-            item.LineTotal)).ToArray();
-
-        return new CartResponse(cart.Id, cart.CustomerId, items.Sum(item => item.LineTotal), items);
+        return currentUserContext.CustomerId.Value;
     }
 }

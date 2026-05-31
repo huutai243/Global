@@ -10,14 +10,33 @@ public sealed class CartItemConfiguration : IEntityTypeConfiguration<CartItem>
     {
         entity.HasKey(cartItem => cartItem.Id);
 
+        entity.Property(cartItem => cartItem.CartId)
+            .IsRequired();
+
+        entity.Property(cartItem => cartItem.ProductId)
+            .IsRequired();
+
         entity.Property(cartItem => cartItem.ProductNameSnapshot)
             .HasMaxLength(200)
             .IsRequired();
 
-        entity.Property(cartItem => cartItem.UnitPriceSnapshot)
-            .HasPrecision(18, 2);
+        entity.Property(cartItem => cartItem.ProductImageUrlSnapshot)
+            .HasMaxLength(1000);
 
-        entity.Property(cartItem => cartItem.LineTotal)
-            .HasPrecision(18, 2);
+        entity.Property(cartItem => cartItem.UnitPriceSnapshot)
+            .HasPrecision(18, 2)
+            .IsRequired();
+
+        entity.Property(cartItem => cartItem.Quantity)
+            .IsRequired();
+
+        entity.Ignore(cartItem => cartItem.LineTotal);
+
+        entity.HasIndex(cartItem => new
+        {
+            cartItem.CartId,
+            cartItem.ProductId
+        })
+        .IsUnique();
     }
 }

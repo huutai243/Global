@@ -1,5 +1,6 @@
+using ECommerce.Domain.Core.Cart.Responses;
 using ECommerce.Domain.Service.Cart.AddCartItem;
-using ECommerce.Domain.Service.Ordering.CheckoutCart;
+using ECommerce.Domain.Service.Cart.GetCart;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -7,23 +8,38 @@ using Microsoft.AspNetCore.Mvc;
 namespace ECommerce.WebApi.Controllers.Cart;
 
 [ApiController]
-[Route("api/customers/{customerId:guid}/cart")]
-[Authorize(Roles = "Customer,Admin")]
-public class CartController(ISender sender) : ControllerBase
+[Authorize]
+[Route("api/cart")]
+[Produces("application/json")]
+public sealed class CartController(ISender sender) : ControllerBase
 {
-    [HttpPost("items")]
-    public async Task<IActionResult> AddItemAsync(Guid customerId, AddCartItemRequest request, CancellationToken cancellationToken)
+    [HttpGet]
+    [ProducesResponseType(typeof(CartResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    public async Task<IActionResult> GetAsync(CancellationToken cancellationToken)
     {
-        return Ok(await sender.Send(new AddCartItemCommand(customerId, request.ProductId, request.Quantity), cancellationToken));
+        var response = await sender.Send(new GetCartQuery(), cancellationToken);
+
+        return Ok(response);
     }
 
-    [HttpPost("checkout")]
-    public async Task<IActionResult> CheckoutAsync(Guid customerId, CheckoutRequest request, CancellationToken cancellationToken)
+    [HttpPost("items")]
+    [ProducesResponseType(typeof(CartResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> AddItemAsync(
+        [FromBody] AddCartItemRequest request,
+        CancellationToken cancellationToken)
     {
-        return Ok(await sender.Send(new CheckoutCartCommand(customerId, request.IdempotencyKey), cancellationToken));
+        var response = await sender.Send(
+            new AddCartItemCommand(
+                request.ProductId,
+                request.Quantity),
+            cancellationToken);
+
+        return Ok(response);
     }
 }
-
-public sealed record AddCartItemRequest(Guid ProductId, int Quantity);
-
-public sealed record CheckoutRequest(string IdempotencyKey);
