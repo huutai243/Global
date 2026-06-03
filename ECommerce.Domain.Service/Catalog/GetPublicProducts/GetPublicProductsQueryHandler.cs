@@ -58,6 +58,7 @@ public sealed class GetPublicProductsQueryHandler(ECommerceDbContext dbContext)
                 Name = product.Name,
                 Description = product.Description,
                 Price = product.Price,
+                ImageUrl = product.ImageUrl,
                 Status = product.Status.ToString()
             })
             .ToArrayAsync(cancellationToken);
