@@ -39,7 +39,7 @@ public sealed class CategoriesController(ISender sender) : ControllerBase
     }
 
     [HttpPost]
-    [Authorize(Roles = UserRoles.Admin)]
+    //[Authorize(Roles = UserRoles.Admin)]
     [Consumes("multipart/form-data")]
     [ProducesResponseType(typeof(CategoryResponse), StatusCodes.Status201Created)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]

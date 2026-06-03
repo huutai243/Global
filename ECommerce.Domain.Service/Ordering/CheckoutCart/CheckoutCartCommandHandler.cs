@@ -20,85 +20,134 @@ public sealed class CheckoutCartCommandHandler(
 {
     public async Task<CheckoutResponse> Handle(CheckoutCartCommand request, CancellationToken cancellationToken)
     {
-        if (!currentUserContext.IsAdmin && currentUserContext.CustomerId != request.CustomerId)
-        {
-            throw new ForbiddenAccessException("Customer can only checkout own cart.");
-        }
+        var customerId = GetCurrentCustomerId();
 
-        logger.LogInformation("Checkout started for customer {CustomerId}", request.CustomerId);
+        logger.LogInformation("Checkout started for customer {CustomerId}", customerId);
+
         await using var transaction = await dbContext.Database.BeginTransactionAsync(cancellationToken);
 
-        var cart = await dbContext.Carts
-            .Include(item => item.Items)
-            .FirstOrDefaultAsync(item => item.CustomerId == request.CustomerId, cancellationToken)
-            ?? throw new BusinessRuleException("Cannot checkout missing cart.");
-
-        if (cart.Items.Count == 0)
+        try
         {
-            throw new BusinessRuleException("Cannot checkout empty cart.");
-        }
+            var cart = await dbContext.Carts
+                .Include(cart => cart.Items)
+                .FirstOrDefaultAsync(cart => cart.CustomerId == customerId, cancellationToken)
+                ?? throw new BusinessRuleException("Cannot checkout missing cart.");
 
-        var productIds = cart.Items.Select(item => item.ProductId).ToArray();
-        var products = await dbContext.Products
-            .Where(product => productIds.Contains(product.Id))
-            .ToDictionaryAsync(product => product.Id, cancellationToken);
-        var inventoryItems = await dbContext.InventoryItems
-            .Where(inventoryItem => productIds.Contains(inventoryItem.ProductId))
-            .ToDictionaryAsync(inventoryItem => inventoryItem.ProductId, cancellationToken);
-
-        foreach (var cartItem in cart.Items)
-        {
-            if (!products.TryGetValue(cartItem.ProductId, out var product) || product.Status != ProductStatus.Active)
+            if (cart.Items.Count == 0)
             {
-                throw new BusinessRuleException("Cannot checkout inactive product.");
+                throw new BusinessRuleException("Cannot checkout empty cart.");
             }
 
-            if (!inventoryItems.TryGetValue(cartItem.ProductId, out var inventoryItem) ||
-                inventoryItem.AvailableQuantity < cartItem.Quantity)
+            var productIds = cart.Items
+                .Select(cartItem => cartItem.ProductId)
+                .ToArray();
+
+            var products = await dbContext.Products
+                .Where(product => productIds.Contains(product.Id))
+                .ToDictionaryAsync(product => product.Id, cancellationToken);
+
+            var inventoryItems = await dbContext.InventoryItems
+                .Where(inventoryItem => productIds.Contains(inventoryItem.ProductId))
+                .ToDictionaryAsync(inventoryItem => inventoryItem.ProductId, cancellationToken);
+            
+            foreach (var cartItem in cart.Items)
             {
-                throw new BusinessRuleException("Insufficient stock.");
+                if (!products.TryGetValue(cartItem.ProductId, out var product) ||
+                    product.Status != ProductStatus.Active)
+                {
+                    throw new BusinessRuleException("Cannot checkout inactive product.");
+                }
+
+                if (!inventoryItems.TryGetValue(cartItem.ProductId, out var inventoryItem) ||
+                    inventoryItem.AvailableQuantity < cartItem.Quantity)
+                {
+                    throw new BusinessRuleException("Insufficient stock.");
+                }
+
+                inventoryItem.AvailableQuantity -= cartItem.Quantity;
+                inventoryItem.UpdatedAt = DateTime.UtcNow;
             }
 
-            inventoryItem.AvailableQuantity -= cartItem.Quantity;
-            inventoryItem.UpdatedAt = DateTime.UtcNow;
-        }
-
-        var order = new Order
-        {
-            Id = Guid.NewGuid(),
-            CustomerId = request.CustomerId,
-            Status = OrderStatus.PendingPayment,
-            CreatedAt = DateTime.UtcNow,
-            Items = cart.Items.Select(item => new OrderItem
+            var order = new Order
             {
                 Id = Guid.NewGuid(),
-                ProductId = item.ProductId,
-                ProductNameSnapshot = item.ProductNameSnapshot,
-                UnitPriceSnapshot = item.UnitPriceSnapshot,
-                Quantity = item.Quantity,
-                LineTotal = item.LineTotal
-            }).ToList()
-        };
-        order.TotalAmount = order.Items.Sum(item => item.LineTotal);
+                CustomerId = customerId,
+                Status = OrderStatus.PendingPayment,
+                CreatedAt = DateTime.UtcNow,
+                Items = cart.Items
+                    .Select(cartItem => new OrderItem
+                    {
+                        Id = Guid.NewGuid(),
+                        ProductId = cartItem.ProductId,
+                        ProductNameSnapshot = cartItem.ProductNameSnapshot,
+                        UnitPriceSnapshot = cartItem.UnitPriceSnapshot,
+                        Quantity = cartItem.Quantity,
+                        LineTotal = cartItem.LineTotal
+                    })
+                    .ToList()
+            };
 
-        dbContext.Orders.Add(order);
-        dbContext.CartItems.RemoveRange(cart.Items);
-        cart.UpdatedAt = DateTime.UtcNow;
+            order.TotalAmount = order.Items.Sum(orderItem => orderItem.LineTotal);
 
-        var @event = new OrderCreatedEvent(order.Id, order.CustomerId, order.TotalAmount, DateTime.UtcNow);
-        dbContext.OutboxMessages.Add(new OutboxMessage
+            dbContext.Orders.Add(order);
+
+            dbContext.CartItems.RemoveRange(cart.Items);
+            cart.UpdatedAt = DateTime.UtcNow;
+
+            var orderCreatedEvent = new OrderCreatedEvent(
+                order.Id,
+                order.CustomerId,
+                order.TotalAmount,
+                DateTime.UtcNow);
+
+            dbContext.OutboxMessages.Add(new OutboxMessage
+            {
+                Id = Guid.NewGuid(),
+                EventType = nameof(OrderCreatedEvent),
+                Payload = JsonSerializer.Serialize(orderCreatedEvent),
+                Status = OutboxStatus.Pending,
+                CreatedAt = DateTime.UtcNow
+            });
+
+            await dbContext.SaveChangesAsync(cancellationToken);
+            await transaction.CommitAsync(cancellationToken);
+
+            logger.LogInformation(
+                "Checkout succeeded for customer {CustomerId} and order {OrderId}",
+                customerId,
+                order.Id);
+
+            return new CheckoutResponse(
+                order.Id,
+                order.CustomerId,
+                order.TotalAmount,
+                order.Status.ToString());
+        }
+        catch (DbUpdateConcurrencyException exception)
         {
-            Id = Guid.NewGuid(),
-            EventType = nameof(OrderCreatedEvent),
-            Payload = JsonSerializer.Serialize(@event),
-            Status = OutboxStatus.Pending,
-            CreatedAt = DateTime.UtcNow
-        });
+            await transaction.RollbackAsync(cancellationToken);
 
-        await dbContext.SaveChangesAsync(cancellationToken);
-        await transaction.CommitAsync(cancellationToken);
+            logger.LogWarning(
+                exception,
+                "Checkout concurrency conflict for customer {CustomerId}",
+                customerId);
 
-        logger.LogInformation("Checkout succeeded for customer {CustomerId} and order {OrderId}", request.CustomerId, order.Id);
-        return new CheckoutResponse(order.Id, order.CustomerId, order.TotalAmount, order.Status.ToString());
+            throw new BusinessRuleException("Product stock changed. Please try checkout again.");
+        }
+        catch
+        {
+            await transaction.RollbackAsync(cancellationToken);
+            throw;
+        }
+    }
+
+    private Guid GetCurrentCustomerId()
+    {
+        if (currentUserContext.CustomerId is null || currentUserContext.CustomerId == Guid.Empty)
+        {
+            throw new ForbiddenAccessException("Customer context is missing.");
+        }
+
+        return currentUserContext.CustomerId.Value;
     }
 }

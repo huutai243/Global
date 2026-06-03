@@ -44,6 +44,7 @@ public sealed class GetProductByIdQueryHandler(
                 Name = item.Name,
                 Description = item.Description,
                 Price = item.Price,
+                ImageUrl = item.ImageUrl,
                 Status = item.Status.ToString()
             })
             .FirstOrDefaultAsync(cancellationToken);

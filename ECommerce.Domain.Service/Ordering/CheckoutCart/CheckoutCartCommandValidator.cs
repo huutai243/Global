@@ -6,7 +6,8 @@ public sealed class CheckoutCartCommandValidator : AbstractValidator<CheckoutCar
 {
     public CheckoutCartCommandValidator()
     {
-        RuleFor(command => command.CustomerId).NotEmpty();
-        RuleFor(command => command.IdempotencyKey).NotEmpty().MaximumLength(200);
+        RuleFor(command => command.IdempotencyKey)
+            .NotEmpty()
+            .MaximumLength(200);
     }
 }
