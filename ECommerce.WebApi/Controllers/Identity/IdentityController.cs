@@ -1,6 +1,8 @@
+using ECommerce.Domain.Service.Identity.ForgotPassword;
 using ECommerce.Domain.Service.Identity.Login;
 using ECommerce.Domain.Service.Identity.Profile;
 using ECommerce.Domain.Service.Identity.Register;
+using ECommerce.Domain.Service.Identity.ResetPassword;
 using ECommerce.Domain.Service.Identity.Shared;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
@@ -56,5 +58,37 @@ public sealed class IdentityController(ISender sender) : ControllerBase
         var response = await sender.Send(command, cancellationToken);
 
         return Ok(response);
+    }
+
+    [HttpPost("forgot-password")]
+    [AllowAnonymous]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> ForgotPasswordAsync(
+    [FromBody] ForgotPasswordCommand command,
+    CancellationToken cancellationToken)
+    {
+        await sender.Send(command, cancellationToken);
+
+        return Ok(new
+        {
+            message = "If the email exists, a password reset link has been sent."
+        });
+    }
+
+    [HttpPost("reset-password")]
+    [AllowAnonymous]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> ResetPasswordAsync(
+        [FromBody] ResetPasswordCommand command,
+        CancellationToken cancellationToken)
+    {
+        await sender.Send(command, cancellationToken);
+
+        return Ok(new
+        {
+            message = "Password has been reset successfully."
+        });
     }
 }

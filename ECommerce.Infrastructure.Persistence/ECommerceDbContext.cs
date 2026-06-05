@@ -19,6 +19,7 @@ public class ECommerceDbContext(DbContextOptions<ECommerceDbContext> options) : 
     public DbSet<InventoryTransaction> InventoryTransactions => Set<InventoryTransaction>();
 
     public DbSet<ApplicationUser> ApplicationUsers => Set<ApplicationUser>();
+    public DbSet<PasswordResetToken> PasswordResetTokens => Set<PasswordResetToken>();
 
     public DbSet<Customer> Customers => Set<Customer>();
 

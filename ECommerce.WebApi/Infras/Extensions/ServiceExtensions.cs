@@ -6,8 +6,10 @@ using ECommerce.Domain.Service.Catalog.CreateProduct;
 using ECommerce.Domain.Service.Catalog.GetPublicProducts;
 using ECommerce.Domain.Service.Catalog.UpdateCategory;
 using ECommerce.Domain.Service.Catalog.UpdateProduct;
+using ECommerce.Domain.Service.Identity.ForgotPassword;
 using ECommerce.Domain.Service.Identity.Login;
 using ECommerce.Domain.Service.Identity.Register;
+using ECommerce.Domain.Service.Identity.ResetPassword;
 using ECommerce.Domain.Service.Inventory.AdjustInventory;
 using ECommerce.Domain.Service.Ordering.CheckoutCart;
 using ECommerce.Domain.Service.Payment.PayOrder;
@@ -20,7 +22,6 @@ using ECommerce.Infrastructure.Redis;
 using ECommerce.Infrastructure.Security;
 using ECommerce.Infrastructure.Security.Core;
 using ECommerce.Infrastructure.Storage;
-using ECommerce.WebApi.Infras;
 using FluentValidation;
 using MediatR;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -40,6 +41,8 @@ public static class ServiceExtensions
         services.AddMediatRServices();
         services.AddValidationServices();
         services.AddAuthenticationServices(configuration);
+        services.AddEmailServices(configuration);
+        services.AddPasswordResetServices();
         services.AddAuthorizationServices();
         services.AddRedisCache(configuration);
         services.AddRabbitMqMessaging(configuration);
@@ -76,6 +79,8 @@ public static class ServiceExtensions
         services.AddScoped<IValidator<CreateCategoryCommand>, CreateCategoryCommandValidator>();
         services.AddScoped<IValidator<UpdateCategoryCommand>, UpdateCategoryCommandValidator>();
         services.AddScoped<IValidator<RegisterCustomerCommand>, RegisterCustomerCommandValidator>();
+        services.AddScoped<IValidator<ForgotPasswordCommand>, ForgotPasswordCommandValidator>();
+        services.AddScoped<IValidator<ResetPasswordCommand>, ResetPasswordCommandValidator>();
         services.AddScoped<IValidator<LoginCommand>, LoginCommandValidator>();
         services.AddScoped<IValidator<AdjustInventoryCommand>, AdjustInventoryCommandValidator>();
         services.AddScoped<IValidator<AddCartItemCommand>, AddCartItemCommandValidator>();
@@ -129,6 +134,21 @@ public static class ServiceExtensions
     public static IServiceCollection AddHealthCheckServices(this IServiceCollection services)
     {
         services.AddHealthChecks();
+        return services;
+    }
+
+    public static IServiceCollection AddEmailServices(this IServiceCollection services, IConfiguration configuration)
+    {
+        services.Configure<SmtpSettings>(configuration.GetSection("Smtp"));
+        services.AddScoped<IEmailSender, SmtpEmailSender>();
+
+        return services;
+    }
+
+    public static IServiceCollection AddPasswordResetServices(this IServiceCollection services)
+    {
+        services.AddScoped<IPasswordResetTokenService, PasswordResetTokenService>();
+
         return services;
     }
 }
