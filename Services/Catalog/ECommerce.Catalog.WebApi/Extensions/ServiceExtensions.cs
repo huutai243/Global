@@ -11,6 +11,8 @@ using ECommerce.Infrastructure.Security;
 using ECommerce.Infrastructure.Security.Core;
 using ECommerce.Infrastructure.Storage;
 using ECommerce.Shared.Core.Behaviors;
+using ECommerce.Shared.Core.Helpers;
+using ECommerce.Shared.Core.Interfaces;
 using FluentValidation;
 using MediatR;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -28,6 +30,7 @@ public static class ServiceExtensions
         services.AddDatabase(configuration);
         services.AddBlobStorage(configuration);
         services.AddRedisCache(configuration);
+        services.AddSingleton<IJsonHelper, JsonHelper>();
 
         services.AddCatalogMediatRServices();
         services.AddCatalogValidationServices();
