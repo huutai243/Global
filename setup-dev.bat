@@ -2,8 +2,16 @@
 setlocal EnableExtensions
 
 set "SOLUTION=ECommerce.sln"
-set "STARTUP_PROJECT=ECommerce.WebApi"
-set "MIGRATION_PROJECT=ECommerce.Infrastructure.Persistence"
+
+set "API_GATEWAY_PROJECT=ApiGateway\ECommerce.ApiGateway\ECommerce.ApiGateway.csproj"
+
+set "IDENTITY_PROJECT=Services\Identity\ECommerce.Identity.WebApi\ECommerce.Identity.WebApi.csproj"
+set "CATALOG_PROJECT=Services\Catalog\ECommerce.Catalog.WebApi\ECommerce.Catalog.WebApi.csproj"
+set "CART_PROJECT=Services\Cart\ECommerce.Cart.WebApi\ECommerce.Cart.WebApi.csproj"
+
+set "MIGRATION_PROJECT=Infras\ECommerce.Infrastructure.Persistence\ECommerce.Infrastructure.Persistence.csproj"
+set "MIGRATION_STARTUP_PROJECT=Services\Identity\ECommerce.Identity.WebApi\ECommerce.Identity.WebApi.csproj"
+
 set "EF_VERSION=8.0.6"
 
 if not exist "Logs" mkdir "Logs"
@@ -38,6 +46,7 @@ call :log "Installing or updating dotnet-ef %EF_VERSION%."
 call :run dotnet tool update --global dotnet-ef --version %EF_VERSION%
 if errorlevel 1 (
     call :log "dotnet-ef update failed. Trying install instead."
+
     call :run dotnet tool install --global dotnet-ef --version %EF_VERSION%
     if errorlevel 1 (
         call :fail "dotnet-ef setup failed. Please check your .NET SDK installation and global tool path."
@@ -50,20 +59,25 @@ if errorlevel 1 call :fail "dotnet restore failed. Please check the log for deta
 call :run dotnet build "%SOLUTION%"
 if errorlevel 1 call :fail "dotnet build failed. Please check the log for details."
 
-call :run dotnet ef database update --project "%MIGRATION_PROJECT%" --startup-project "%STARTUP_PROJECT%"
+call :run dotnet ef database update --project "%MIGRATION_PROJECT%" --startup-project "%MIGRATION_STARTUP_PROJECT%"
 if errorlevel 1 (
-    call :fail "Database update failed. Please check SQL Server service, Server/User Id/Password in ConnectionStrings:ECommerceConnection, and database permissions."
+    call :fail "Database update failed. Please check SQL Server service, ConnectionStrings:ECommerceConnection, and database permissions."
 )
 
-call :log "Setup completed successfully. Starting WebAPI."
-call :run dotnet run --project "%STARTUP_PROJECT%"
-set "EXIT_CODE=%ERRORLEVEL%"
+call :log "Setup completed successfully. Starting microservice development environment."
 
-if not "%EXIT_CODE%"=="0" (
-    call :fail "WebAPI stopped with exit code %EXIT_CODE%."
-)
+start "Identity WebApi" cmd /k dotnet run --project "%IDENTITY_PROJECT%"
+start "Catalog WebApi" cmd /k dotnet run --project "%CATALOG_PROJECT%"
+start "Cart WebApi" cmd /k dotnet run --project "%CART_PROJECT%"
+start "ApiGateway" cmd /k dotnet run --project "%API_GATEWAY_PROJECT%"
 
-call :log "WebAPI stopped."
+call :log "Started services:"
+call :log "Identity WebApi: http://localhost:5212"
+call :log "Catalog WebApi: http://localhost:5018"
+call :log "Cart WebApi: http://localhost:5137"
+call :log "ApiGateway: http://localhost:5000"
+call :log "Frontend should call: http://localhost:5000/api"
+
 exit /b 0
 
 :run
