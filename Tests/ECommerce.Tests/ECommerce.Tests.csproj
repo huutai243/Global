@@ -1,0 +1,27 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="coverlet.collector" Version="6.0.0" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.8.0" />
+    <PackageReference Include="xunit" Version="2.5.3" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="2.5.3" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\Shared\ECommerce.Shared.Core\ECommerce.Shared.Core.csproj" />
+    <ProjectReference Include="..\..\Services\Cart\ECommerce.Cart.Application\ECommerce.Cart.Application.csproj" />
+    <ProjectReference Include="..\..\Services\Catalog\ECommerce.Catalog.Application\ECommerce.Catalog.Application.csproj" />
+    <ProjectReference Include="..\..\Services\Identity\ECommerce.Identity.Application\ECommerce.Identity.Application.csproj" />
+    <ProjectReference Include="..\..\Services\Ordering\ECommerce.Ordering.Application\ECommerce.Ordering.Application.csproj" />
+    <ProjectReference Include="..\..\Services\Inventory\ECommerce.Inventory.Application\ECommerce.Inventory.Application.csproj" />
+    <ProjectReference Include="..\..\Services\Payment\ECommerce.Payment.Application\ECommerce.Payment.Application.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <Using Include="Xunit" />
+  </ItemGroup>
+</Project>

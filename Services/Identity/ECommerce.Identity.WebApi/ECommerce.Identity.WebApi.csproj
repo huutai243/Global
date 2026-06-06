@@ -1,0 +1,22 @@
+﻿<Project Sdk="Microsoft.NET.Sdk.Web">
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <UserSecretsId>9a94bae3-9095-4b25-8213-1b9f497c5d86</UserSecretsId>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="8.0.8" />
+    <PackageReference Include="Swashbuckle.AspNetCore" Version="6.6.2" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\ECommerce.Identity.Application\ECommerce.Identity.Application.csproj" />
+    <ProjectReference Include="..\ECommerce.Identity.Domain\ECommerce.Identity.Domain.csproj" />
+    <ProjectReference Include="..\ECommerce.Identity.Infrastructure\ECommerce.Identity.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\..\Shared\ECommerce.Shared.Core\ECommerce.Shared.Core.csproj" />
+    <ProjectReference Include="..\..\..\Infras\ECommerce.Infrastructure.Persistence\ECommerce.Infrastructure.Persistence.csproj" />
+    <ProjectReference Include="..\..\..\Infras\ECommerce.Infrastructure.Security\ECommerce.Infrastructure.Security.csproj" />
+    <ProjectReference Include="..\..\..\Infras\ECommerce.Infrastructure.Security.Core\ECommerce.Infrastructure.Security.Core.csproj" />
+    <ProjectReference Include="..\..\..\Infras\ECommerce.Infrastructure.Observability\ECommerce.Infrastructure.Observability.csproj" />
+  </ItemGroup>
+</Project>

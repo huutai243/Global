@@ -1,0 +1,22 @@
+namespace ECommerce.Cart.Domain.Models;
+
+public class CartItem
+{
+    public Guid Id { get; set; }
+
+    public Guid CartId { get; set; }
+
+    public Guid ProductId { get; set; }
+
+    public string ProductNameSnapshot { get; set; } = string.Empty;
+
+    public string? ProductImageUrlSnapshot { get; set; }
+
+    public decimal UnitPriceSnapshot { get; set; }
+
+    public int Quantity { get; set; }
+
+    public decimal LineTotal => UnitPriceSnapshot * Quantity;
+
+    public Cart? Cart { get; set; }
+}
