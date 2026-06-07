@@ -1,12 +1,17 @@
+using ECommerce.Cart.Infrastructure.Persistence;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace ECommerce.Cart.Infrastructure;
 
 public static class DependencyInjection
 {
-    public static IServiceCollection AddCartInfrastructure(this IServiceCollection services)
+    public static IServiceCollection AddCartInfrastructure(this IServiceCollection services, IConfiguration configuration)
     {
-        // TODO Phase 3: Move cart-specific persistence, outbox, inbox, and messaging registrations here.
+        services.AddDbContext<CartDbContext>(options =>
+            options.UseSqlServer(configuration.GetConnectionString("ECommerceConnection")));
+
         return services;
     }
 }

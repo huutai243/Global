@@ -1,6 +1,6 @@
 using ECommerce.Catalog.Domain.Models;
 using ECommerce.Catalog.Domain.Responses;
-using ECommerce.Infrastructure.Persistence;
+using ECommerce.Catalog.Infrastructure.Persistence;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
@@ -8,7 +8,7 @@ using Microsoft.Extensions.Logging;
 namespace ECommerce.Catalog.Application.Home;
 
 public sealed class GetHomeQueryHandler(
-    ECommerceDbContext dbContext,
+    CatalogDbContext dbContext,
     ILogger<GetHomeQueryHandler> logger)
     : IRequestHandler<GetHomeQuery, HomeResponse>
 {

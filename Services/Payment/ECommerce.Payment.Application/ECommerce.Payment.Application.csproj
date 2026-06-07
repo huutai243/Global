@@ -14,7 +14,7 @@
     <ProjectReference Include="..\ECommerce.Payment.Domain\ECommerce.Payment.Domain.csproj" />
     <ProjectReference Include="..\..\..\Shared\ECommerce.Shared.Contracts\ECommerce.Shared.Contracts.csproj" />
     <ProjectReference Include="..\..\..\Shared\ECommerce.Shared.Core\ECommerce.Shared.Core.csproj" />
-    <ProjectReference Include="..\..\..\Infras\ECommerce.Infrastructure.Persistence\ECommerce.Infrastructure.Persistence.csproj" />
+    <ProjectReference Include="..\ECommerce.Payment.Infrastructure\ECommerce.Payment.Infrastructure.csproj" />
     <ProjectReference Include="..\..\..\Infras\ECommerce.Infrastructure.Security.Core\ECommerce.Infrastructure.Security.Core.csproj" />
     <ProjectReference Include="..\..\..\Infras\ECommerce.Infrastructure.Storage\ECommerce.Infrastructure.Storage.csproj" />
   </ItemGroup>

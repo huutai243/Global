@@ -6,6 +6,8 @@ public class Order
 
     public Guid CustomerId { get; set; }
 
+    public string IdempotencyKey { get; set; } = string.Empty;
+
     public decimal TotalAmount { get; set; }
 
     public OrderStatus Status { get; set; }

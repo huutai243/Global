@@ -1,8 +1,7 @@
 using ECommerce.Shared.Core.Exceptions;
 using ECommerce.Catalog.Domain.Models;
 using ECommerce.Catalog.Domain.Responses;
-using ECommerce.Inventory.Domain.Models;
-using ECommerce.Infrastructure.Persistence;
+using ECommerce.Catalog.Infrastructure.Persistence;
 using ECommerce.Infrastructure.Storage;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
@@ -10,7 +9,7 @@ using Microsoft.EntityFrameworkCore;
 namespace ECommerce.Catalog.Application.CreateProduct;
 
 public sealed class CreateProductCommandHandler(
-    ECommerceDbContext dbContext,
+    CatalogDbContext dbContext,
     IBlobStorageService blobStorageService)
     : IRequestHandler<CreateProductCommand, ProductResponse>
 {
@@ -60,13 +59,8 @@ public sealed class CreateProductCommandHandler(
 
         dbContext.Products.Add(product);
 
-        dbContext.InventoryItems.Add(new InventoryItem
-        {
-            Id = Guid.NewGuid(),
-            ProductId = product.Id,
-            AvailableQuantity = request.InitialStock,
-            CreatedAt = DateTime.UtcNow
-        });
+        // TODO: Boundary violation removed. Publish ProductCreated/StockInitializationRequested
+        // so Inventory can create its own InventoryItem.
 
         await dbContext.SaveChangesAsync(cancellationToken);
 

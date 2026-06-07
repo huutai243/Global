@@ -1,12 +1,17 @@
+using ECommerce.Inventory.Infrastructure.Persistence;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace ECommerce.Inventory.Infrastructure;
 
 public static class DependencyInjection
 {
-    public static IServiceCollection AddInventoryInfrastructure(this IServiceCollection services)
+    public static IServiceCollection AddInventoryInfrastructure(this IServiceCollection services, IConfiguration configuration)
     {
-        // TODO Phase 3: Move inventory-specific persistence, outbox, inbox, and messaging registrations here.
+        services.AddDbContext<InventoryDbContext>(options =>
+            options.UseSqlServer(configuration.GetConnectionString("ECommerceConnection")));
+
         return services;
     }
 }

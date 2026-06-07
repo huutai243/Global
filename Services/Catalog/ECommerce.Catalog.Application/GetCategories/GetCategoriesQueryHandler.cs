@@ -1,11 +1,11 @@
 using ECommerce.Catalog.Domain.Responses;
-using ECommerce.Infrastructure.Persistence;
+using ECommerce.Catalog.Infrastructure.Persistence;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 
 namespace ECommerce.Catalog.Application.GetCategories;
 
-public sealed class GetCategoriesQueryHandler(ECommerceDbContext dbContext)
+public sealed class GetCategoriesQueryHandler(CatalogDbContext dbContext)
     : IRequestHandler<GetCategoriesQuery, IReadOnlyCollection<CategoryResponse>>
 {
     public async Task<IReadOnlyCollection<CategoryResponse>> Handle(GetCategoriesQuery request, CancellationToken cancellationToken)

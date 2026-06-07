@@ -8,6 +8,6 @@ public sealed class CheckoutCartCommandValidator : AbstractValidator<CheckoutCar
     {
         RuleFor(command => command.IdempotencyKey)
             .NotEmpty()
-            .MaximumLength(200);
+            .MaximumLength(100);
     }
 }

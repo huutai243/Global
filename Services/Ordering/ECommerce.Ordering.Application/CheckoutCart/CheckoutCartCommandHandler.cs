@@ -1,163 +1,213 @@
-using System.Text.Json;
+using ECommerce.Ordering.Domain.Contracts.Cart;
+using ECommerce.Ordering.Domain.Models;
+using ECommerce.Ordering.Infrastructure.Persistence;
 using ECommerce.Shared.Contracts;
 using ECommerce.Shared.Core.Exceptions;
 using ECommerce.Shared.Core.Interfaces;
-using ECommerce.Catalog.Domain.Models;
-using ECommerce.Ordering.Domain.Models;
-using ECommerce.Infrastructure.Persistence;
-using ECommerce.Infrastructure.Persistence.Events;
-using ECommerce.Infrastructure.Persistence.Models;
+using ECommerce.Shared.Outbox;
 using MediatR;
+using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 
 namespace ECommerce.Ordering.Application.CheckoutCart;
 
 public sealed class CheckoutCartCommandHandler(
-    ECommerceDbContext dbContext,
+    OrderingDbContext dbContext,
+    ICartCheckoutClient cartCheckoutClient,
     ICurrentUserContext currentUserContext,
+    OutboxMessageFactory outboxMessageFactory,
     ILogger<CheckoutCartCommandHandler> logger)
     : IRequestHandler<CheckoutCartCommand, CheckoutResponse>
 {
-    public async Task<CheckoutResponse> Handle(CheckoutCartCommand request, CancellationToken cancellationToken)
-    {
-        var customerId = GetCurrentCustomerId();
+    private const string SourceService = "Ordering";
+    private const string DestinationService = "Inventory";
 
-        logger.LogInformation("Checkout started for customer {CustomerId}", customerId);
-
-        await using var transaction = await dbContext.Database.BeginTransactionAsync(cancellationToken);
-
-        try
-        {
-            var cart = await dbContext.Carts
-                .Include(cart => cart.Items)
-                .FirstOrDefaultAsync(cart => cart.CustomerId == customerId, cancellationToken)
-                ?? throw new BusinessRuleException("Cannot checkout missing cart.");
-
-            if (cart.Items.Count == 0)
-            {
-                throw new BusinessRuleException("Cannot checkout empty cart.");
-            }
-
-            var productIds = cart.Items
-                .Select(cartItem => cartItem.ProductId)
-                .ToArray();
-
-            var products = await dbContext.Products
-                .Where(product => productIds.Contains(product.Id))
-                .ToDictionaryAsync(product => product.Id, cancellationToken);
-
-            foreach (var cartItem in cart.Items)
-            {
-                if (!products.TryGetValue(cartItem.ProductId, out var product) ||
-                    product.Status != ProductStatus.Active)
-                {
-                    throw new BusinessRuleException("Cannot checkout inactive product.");
-                }
-            }
-
-            var orderId = Guid.NewGuid();
-            var order = new Order
-            {
-                Id = orderId,
-                CustomerId = customerId,
-                Status = OrderStatus.PendingInventoryReservation,
-                CreatedAt = DateTime.UtcNow,
-                Items = cart.Items
-                    .Select(cartItem => new OrderItem
-                    {
-                        Id = Guid.NewGuid(),
-                        OrderId = orderId,
-                        ProductId = cartItem.ProductId,
-                        ProductNameSnapshot = cartItem.ProductNameSnapshot,
-                        UnitPriceSnapshot = cartItem.UnitPriceSnapshot,
-                        Quantity = cartItem.Quantity,
-                        LineTotal = cartItem.LineTotal
-                    })
-                    .ToList()
-            };
-
-            order.TotalAmount = order.Items.Sum(orderItem => orderItem.LineTotal);
-
-            dbContext.Orders.Add(order);
-
-            dbContext.CartItems.RemoveRange(cart.Items);
-            cart.UpdatedAt = DateTime.UtcNow;
-
-            var orderCreatedEvent = new OrderCreatedEvent(
-                order.Id,
-                order.CustomerId,
-                order.TotalAmount,
-                DateTime.UtcNow);
-
-            dbContext.OutboxMessages.Add(new OutboxMessage
-            {
-                Id = Guid.NewGuid(),
-                EventType = nameof(OrderCreatedEvent),
-                Payload = JsonSerializer.Serialize(orderCreatedEvent),
-                Status = OutboxStatus.Pending,
-                CreatedAt = DateTime.UtcNow
-            });
-
-            var reserveInventoryCommand = new ReserveInventoryCommand(
-                order.Id,
-                order.CustomerId,
-                order.Items
-                    .Select(orderItem => new InventoryReservationItem(
-                        orderItem.ProductId,
-                        orderItem.ProductNameSnapshot,
-                        orderItem.Quantity))
-                    .ToArray(),
-                DateTime.UtcNow);
-
-            dbContext.OutboxMessages.Add(new OutboxMessage
-            {
-                Id = Guid.NewGuid(),
-                EventType = nameof(ReserveInventoryCommand),
-                Payload = JsonSerializer.Serialize(reserveInventoryCommand),
-                Status = OutboxStatus.Pending,
-                CreatedAt = DateTime.UtcNow
-            });
-
-            await dbContext.SaveChangesAsync(cancellationToken);
-            await transaction.CommitAsync(cancellationToken);
-
-            logger.LogInformation(
-                "Checkout succeeded for customer {CustomerId} and order {OrderId}",
-                customerId,
-                order.Id);
-
-            return new CheckoutResponse(
-                order.Id,
-                order.CustomerId,
-                order.TotalAmount,
-                order.Status.ToString());
-        }
-        catch (DbUpdateConcurrencyException exception)
-        {
-            await transaction.RollbackAsync(cancellationToken);
-
-            logger.LogWarning(
-                exception,
-                "Checkout concurrency conflict for customer {CustomerId}",
-                customerId);
-
-            throw new BusinessRuleException("Product stock changed. Please try checkout again.");
-        }
-        catch
-        {
-            await transaction.RollbackAsync(cancellationToken);
-            throw;
-        }
-    }
-
-    private Guid GetCurrentCustomerId()
+    public async Task<CheckoutResponse> Handle(
+        CheckoutCartCommand request,
+        CancellationToken cancellationToken)
     {
         if (currentUserContext.CustomerId is null || currentUserContext.CustomerId == Guid.Empty)
         {
             throw new ForbiddenAccessException("Customer context is missing.");
         }
 
-        return currentUserContext.CustomerId.Value;
+        if (string.IsNullOrWhiteSpace(request.IdempotencyKey))
+        {
+            throw new BusinessRuleException("Checkout idempotency key is required.");
+        }
+
+        var customerId = currentUserContext.CustomerId.Value;
+        var idempotencyKey = request.IdempotencyKey;
+
+        // Idempotency prevents duplicated orders when the same checkout request is retried.
+        var existingOrder = await FindExistingOrderAsync(
+            customerId,
+            idempotencyKey,
+            cancellationToken);
+
+        if (existingOrder is not null)
+        {
+            logger.LogInformation(
+                "Checkout idempotency hit. CustomerId: {CustomerId}, OrderId: {OrderId}, IdempotencyKey: {IdempotencyKey}",
+                customerId,
+                existingOrder.Id,
+                idempotencyKey);
+
+            return MapToResponse(existingOrder);
+        }
+
+        // The cart snapshot freezes checkout data such as product name, unit price, and quantity.
+        var cart = await cartCheckoutClient.GetCheckoutSnapshotAsync(cancellationToken);
+
+        if (cart.CustomerId != customerId)
+        {
+            throw new ForbiddenAccessException("Cart snapshot does not belong to the current customer.");
+        }
+
+        if (cart.Items.Count == 0)
+        {
+            throw new BusinessRuleException("Cannot checkout an empty cart.");
+        }
+
+        var utcNow = DateTime.UtcNow;
+
+        var order = CreateOrder(
+            customerId,
+            idempotencyKey,
+            cart,
+            utcNow);
+
+        var reserveInventoryCommand = CreateReserveInventoryCommand(order, utcNow);
+
+        // Outbox keeps order creation and event publishing reliable across service failures.
+        var outboxMessage = outboxMessageFactory.Create(
+            reserveInventoryCommand,
+            SourceService,
+            DestinationService,
+            Guid.NewGuid().ToString("N"),
+            idempotencyKey,
+            utcNow);
+
+        await using var transaction = await dbContext.Database.BeginTransactionAsync(cancellationToken);
+
+        try
+        {
+            dbContext.Orders.Add(order);
+            dbContext.OutboxMessages.Add(outboxMessage);
+
+            await dbContext.SaveChangesAsync(cancellationToken);
+            await transaction.CommitAsync(cancellationToken);
+
+            logger.LogInformation(
+                "Checkout committed. OrderId: {OrderId}, OutboxMessageId: {MessageId}, CorrelationId: {CorrelationId}",
+                order.Id,
+                outboxMessage.MessageId,
+                outboxMessage.CorrelationId);
+
+            return MapToResponse(order);
+        }
+        catch (DbUpdateException exception) when (IsUniqueConstraintViolation(exception))
+        {
+            await transaction.RollbackAsync(cancellationToken);
+            dbContext.ChangeTracker.Clear();
+
+            // Another request may have inserted the same idempotent order concurrently.
+            var idempotentOrder = await FindExistingOrderAsync(
+                customerId,
+                idempotencyKey,
+                cancellationToken);
+
+            if (idempotentOrder is null)
+            {
+                throw;
+            }
+
+            logger.LogInformation(
+                "Checkout idempotency race resolved. CustomerId: {CustomerId}, OrderId: {OrderId}, IdempotencyKey: {IdempotencyKey}",
+                customerId,
+                idempotentOrder.Id,
+                idempotencyKey);
+
+            return MapToResponse(idempotentOrder);
+        }
+    }
+
+    private async Task<Order?> FindExistingOrderAsync(
+        Guid customerId,
+        string idempotencyKey,
+        CancellationToken cancellationToken)
+    {
+        return await dbContext.Orders
+            .AsNoTracking()
+            .FirstOrDefaultAsync(
+                order => order.CustomerId == customerId
+                    && order.IdempotencyKey == idempotencyKey,
+                cancellationToken);
+    }
+
+    private static Order CreateOrder(
+        Guid customerId,
+        string idempotencyKey,
+        CheckoutCartSnapshot cart,
+        DateTime utcNow)
+    {
+        var orderId = Guid.NewGuid();
+
+        var orderItems = cart.Items
+            .Select(cartItem => new OrderItem
+            {
+                Id = Guid.NewGuid(),
+                OrderId = orderId,
+                ProductId = cartItem.ProductId,
+                ProductNameSnapshot = cartItem.ProductName,
+                UnitPriceSnapshot = cartItem.UnitPrice,
+                Quantity = cartItem.Quantity,
+                LineTotal = cartItem.LineTotal
+            })
+            .ToList();
+
+        return new Order
+        {
+            Id = orderId,
+            CustomerId = customerId,
+            IdempotencyKey = idempotencyKey,
+            TotalAmount = orderItems.Sum(orderItem => orderItem.LineTotal),
+            Status = OrderStatus.PendingInventoryReservation,
+            Items = orderItems,
+            CreatedAt = utcNow
+        };
+    }
+
+    private static ReserveInventoryCommand CreateReserveInventoryCommand(
+        Order order,
+        DateTime utcNow)
+    {
+        var items = order.Items
+            .Select(orderItem => new InventoryReservationItem(
+                orderItem.ProductId,
+                orderItem.ProductNameSnapshot,
+                orderItem.Quantity))
+            .ToArray();
+
+        return new ReserveInventoryCommand(
+            order.Id,
+            order.CustomerId,
+            items,
+            utcNow);
+    }
+
+    private static CheckoutResponse MapToResponse(Order order)
+    {
+        return new CheckoutResponse(
+            order.Id,
+            order.CustomerId,
+            order.TotalAmount,
+            order.Status.ToString());
+    }
+
+    private static bool IsUniqueConstraintViolation(DbUpdateException exception)
+    {
+        return exception.InnerException is SqlException { Number: 2601 or 2627 };
     }
 }

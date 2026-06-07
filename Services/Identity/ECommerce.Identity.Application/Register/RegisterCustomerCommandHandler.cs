@@ -1,7 +1,7 @@
 using ECommerce.Shared.Core.Exceptions;
 using ECommerce.Identity.Domain.Models;
 using ECommerce.Identity.Application.Shared;
-using ECommerce.Infrastructure.Persistence;
+using ECommerce.Identity.Infrastructure.Persistence;
 using ECommerce.Infrastructure.Security.Core;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
@@ -10,7 +10,7 @@ using Microsoft.Extensions.Logging;
 namespace ECommerce.Identity.Application.Register;
 
 public sealed class RegisterCustomerCommandHandler(
-    ECommerceDbContext dbContext,
+    IdentityDbContext dbContext,
     IJwtTokenService jwtTokenService,
     ILogger<RegisterCustomerCommandHandler> logger)
     : IRequestHandler<RegisterCustomerCommand, AuthResponse>

@@ -8,6 +8,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace ECommerce.Infrastructure.Persistence;
 
+// TODO: Legacy shared DbContext. Replace with service-specific DbContexts and remove after migration.
 public class ECommerceDbContext(DbContextOptions<ECommerceDbContext> options) : DbContext(options)
 {
     public DbSet<Product> Products => Set<Product>();

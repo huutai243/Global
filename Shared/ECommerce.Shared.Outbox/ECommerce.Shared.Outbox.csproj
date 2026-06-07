@@ -6,4 +6,8 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="..\ECommerce.Shared.Messaging\ECommerce.Shared.Messaging.csproj" />
+  </ItemGroup>
+
 </Project>

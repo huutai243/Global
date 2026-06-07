@@ -1,6 +1,6 @@
 using ECommerce.Shared.Core.Exceptions;
 using ECommerce.Inventory.Domain.Models;
-using ECommerce.Infrastructure.Persistence;
+using ECommerce.Inventory.Infrastructure.Persistence;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
@@ -8,7 +8,7 @@ using Microsoft.Extensions.Logging;
 namespace ECommerce.Inventory.Application.AdjustInventory;
 
 public sealed class AdjustInventoryCommandHandler(
-    ECommerceDbContext dbContext,
+    InventoryDbContext dbContext,
     ILogger<AdjustInventoryCommandHandler> logger)
     : IRequestHandler<AdjustInventoryCommand, InventoryResponse>
 {

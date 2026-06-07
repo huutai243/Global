@@ -1,14 +1,14 @@
 using ECommerce.Shared.Core.Exceptions;
 using ECommerce.Shared.Core.Interfaces;
 using ECommerce.Identity.Application.Shared;
-using ECommerce.Infrastructure.Persistence;
+using ECommerce.Identity.Infrastructure.Persistence;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 
 namespace ECommerce.Identity.Application.Profile;
 
 public sealed class GetProfileQueryHandler(
-    ECommerceDbContext dbContext,
+    IdentityDbContext dbContext,
     ICurrentUserContext currentUserContext)
     : IRequestHandler<GetProfileQuery, ProfileResponse>
 {

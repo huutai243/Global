@@ -1,12 +1,12 @@
 using ECommerce.Shared.Contracts;
-using ECommerce.Infrastructure.Persistence;
-using ECommerce.Infrastructure.Persistence.Models;
+using ECommerce.Inventory.Infrastructure.Persistence;
+using ECommerce.Shared.Inbox;
 using Microsoft.EntityFrameworkCore;
 
 namespace ECommerce.Inventory.Worker.Consumers;
 
 public sealed class ConfirmInventoryReservationCommandConsumer(
-    ECommerceDbContext dbContext,
+    InventoryDbContext dbContext,
     ILogger<ConfirmInventoryReservationCommandConsumer> logger)
 {
     public async Task HandleAsync(ConfirmInventoryReservationCommand command, CancellationToken cancellationToken = default)
@@ -18,29 +18,8 @@ public sealed class ConfirmInventoryReservationCommandConsumer(
 
         await using var transaction = await dbContext.Database.BeginTransactionAsync(cancellationToken);
 
-        var order = await dbContext.Orders
-            .Include(item => item.Items)
-            .FirstOrDefaultAsync(item => item.Id == command.OrderId, cancellationToken);
-
-        if (order is not null)
-        {
-            var productIds = order.Items.Select(item => item.ProductId).ToArray();
-            var inventoryItems = await dbContext.InventoryItems
-                .Where(item => productIds.Contains(item.ProductId))
-                .ToDictionaryAsync(item => item.ProductId, cancellationToken);
-
-            foreach (var orderItem in order.Items)
-            {
-                if (!inventoryItems.TryGetValue(orderItem.ProductId, out var inventoryItem))
-                {
-                    continue;
-                }
-
-                inventoryItem.ReservedQuantity = Math.Max(0, inventoryItem.ReservedQuantity - orderItem.Quantity);
-                inventoryItem.SoldQuantity += orderItem.Quantity;
-                inventoryItem.UpdatedAt = DateTime.UtcNow;
-            }
-        }
+        // TODO: Boundary violation removed. Confirm reservation must use reservation state or message payload,
+        // not Ordering tables, once InventoryReservation is introduced.
 
         MarkProcessed(nameof(ConfirmInventoryReservationCommand), command.OrderId);
         await dbContext.SaveChangesAsync(cancellationToken);
@@ -52,19 +31,25 @@ public sealed class ConfirmInventoryReservationCommandConsumer(
     private async Task<bool> HasProcessedAsync(string messageType, Guid aggregateId, CancellationToken cancellationToken)
     {
         var key = BuildKey(messageType, aggregateId);
-        return await dbContext.IdempotencyRecords.AnyAsync(record => record.Key == key, cancellationToken);
+        return await dbContext.InboxMessages.AnyAsync(
+            record => record.MessageId == key && record.ConsumerName == nameof(ConfirmInventoryReservationCommandConsumer),
+            cancellationToken);
     }
 
     private void MarkProcessed(string messageType, Guid aggregateId)
     {
-        dbContext.IdempotencyRecords.Add(new IdempotencyRecord
+        dbContext.InboxMessages.Add(new InboxMessage
         {
             Id = Guid.NewGuid(),
-            Key = BuildKey(messageType, aggregateId),
-            RequestHash = aggregateId.ToString("N"),
-            Status = "Completed",
-            CreatedAt = DateTime.UtcNow,
-            CompletedAt = DateTime.UtcNow
+            MessageId = BuildKey(messageType, aggregateId),
+            CorrelationId = aggregateId.ToString("N"),
+            CausationId = aggregateId.ToString("N"),
+            MessageType = messageType,
+            ConsumerName = nameof(ConfirmInventoryReservationCommandConsumer),
+            Payload = string.Empty,
+            Status = InboxMessageStatus.Processed,
+            ReceivedAtUtc = DateTime.UtcNow,
+            ProcessedAtUtc = DateTime.UtcNow
         });
     }
 

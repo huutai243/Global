@@ -13,6 +13,5 @@
     <ProjectReference Include="..\ECommerce.Payment.Infrastructure\ECommerce.Payment.Infrastructure.csproj" />
     <ProjectReference Include="..\..\..\Shared\ECommerce.Shared.Messaging\ECommerce.Shared.Messaging.csproj" />
     <ProjectReference Include="..\..\..\Shared\ECommerce.Shared.Contracts\ECommerce.Shared.Contracts.csproj" />
-    <ProjectReference Include="..\..\..\Infras\ECommerce.Infrastructure.Persistence\ECommerce.Infrastructure.Persistence.csproj" />
   </ItemGroup>
 </Project>

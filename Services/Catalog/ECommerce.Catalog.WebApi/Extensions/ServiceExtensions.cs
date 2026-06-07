@@ -5,7 +5,7 @@ using ECommerce.Catalog.Application.GetProductById;
 using ECommerce.Catalog.Application.GetPublicProducts;
 using ECommerce.Catalog.Application.UpdateCategory;
 using ECommerce.Catalog.Application.UpdateProduct;
-using ECommerce.Infrastructure.Persistence.Extensions;
+using ECommerce.Catalog.Infrastructure;
 using ECommerce.Infrastructure.Redis;
 using ECommerce.Infrastructure.Security;
 using ECommerce.Infrastructure.Security.Core;
@@ -27,7 +27,7 @@ public static class ServiceExtensions
         this IServiceCollection services,
         IConfiguration configuration)
     {
-        services.AddDatabase(configuration);
+        services.AddCatalogInfrastructure(configuration);
         services.AddBlobStorage(configuration);
         services.AddRedisCache(configuration);
         services.AddSingleton<IJsonHelper, JsonHelper>();

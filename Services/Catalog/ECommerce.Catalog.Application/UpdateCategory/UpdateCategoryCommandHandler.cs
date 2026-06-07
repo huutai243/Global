@@ -1,6 +1,6 @@
 using ECommerce.Shared.Core.Exceptions;
 using ECommerce.Catalog.Domain.Responses;
-using ECommerce.Infrastructure.Persistence;
+using ECommerce.Catalog.Infrastructure.Persistence;
 using ECommerce.Infrastructure.Storage;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
@@ -8,7 +8,7 @@ using Microsoft.EntityFrameworkCore;
 namespace ECommerce.Catalog.Application.UpdateCategory;
 
 public sealed class UpdateCategoryCommandHandler(
-    ECommerceDbContext dbContext,
+    CatalogDbContext dbContext,
     IBlobStorageService blobStorageService)
     : IRequestHandler<UpdateCategoryCommand, CategoryResponse>
 {

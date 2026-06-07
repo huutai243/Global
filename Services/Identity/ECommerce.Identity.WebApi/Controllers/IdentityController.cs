@@ -64,9 +64,7 @@ public sealed class IdentityController(ISender sender) : ControllerBase
     [AllowAnonymous]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
-    public async Task<IActionResult> ForgotPasswordAsync(
-    [FromBody] ForgotPasswordCommand command,
-    CancellationToken cancellationToken)
+    public async Task<IActionResult> ForgotPasswordAsync([FromBody] ForgotPasswordCommand command, CancellationToken cancellationToken)
     {
         await sender.Send(command, cancellationToken);
 
@@ -80,9 +78,7 @@ public sealed class IdentityController(ISender sender) : ControllerBase
     [AllowAnonymous]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
-    public async Task<IActionResult> ResetPasswordAsync(
-        [FromBody] ResetPasswordCommand command,
-        CancellationToken cancellationToken)
+    public async Task<IActionResult> ResetPasswordAsync([FromBody] ResetPasswordCommand command, CancellationToken cancellationToken)
     {
         await sender.Send(command, cancellationToken);
 

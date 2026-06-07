@@ -2,13 +2,13 @@ using ECommerce.Shared.Core.Constants;
 using ECommerce.Shared.Core.Exceptions;
 using ECommerce.Shared.Core.Interfaces;
 using ECommerce.Catalog.Domain.Models;
-using ECommerce.Infrastructure.Persistence;
+using ECommerce.Catalog.Infrastructure.Persistence;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 
 namespace ECommerce.Catalog.Application.DeleteProduct;
 
-public sealed class DeleteProductCommandHandler(ECommerceDbContext dbContext, IProductCache productCache)
+public sealed class DeleteProductCommandHandler(CatalogDbContext dbContext, IProductCache productCache)
     : IRequestHandler<DeleteProductCommand>
 {
     public async Task Handle(DeleteProductCommand request, CancellationToken cancellationToken)

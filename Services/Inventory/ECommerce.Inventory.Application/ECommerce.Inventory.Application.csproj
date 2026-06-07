@@ -13,7 +13,7 @@
   <ItemGroup>
     <ProjectReference Include="..\ECommerce.Inventory.Domain\ECommerce.Inventory.Domain.csproj" />
     <ProjectReference Include="..\..\..\Shared\ECommerce.Shared.Core\ECommerce.Shared.Core.csproj" />
-    <ProjectReference Include="..\..\..\Infras\ECommerce.Infrastructure.Persistence\ECommerce.Infrastructure.Persistence.csproj" />
+    <ProjectReference Include="..\ECommerce.Inventory.Infrastructure\ECommerce.Inventory.Infrastructure.csproj" />
     <ProjectReference Include="..\..\..\Infras\ECommerce.Infrastructure.Security.Core\ECommerce.Infrastructure.Security.Core.csproj" />
     <ProjectReference Include="..\..\..\Infras\ECommerce.Infrastructure.Storage\ECommerce.Infrastructure.Storage.csproj" />
   </ItemGroup>

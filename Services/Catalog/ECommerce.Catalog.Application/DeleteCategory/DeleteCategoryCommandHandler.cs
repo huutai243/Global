@@ -1,11 +1,11 @@
 using ECommerce.Shared.Core.Exceptions;
-using ECommerce.Infrastructure.Persistence;
+using ECommerce.Catalog.Infrastructure.Persistence;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 
 namespace ECommerce.Catalog.Application.DeleteCategory;
 
-public sealed class DeleteCategoryCommandHandler(ECommerceDbContext dbContext)
+public sealed class DeleteCategoryCommandHandler(CatalogDbContext dbContext)
     : IRequestHandler<DeleteCategoryCommand>
 {
     public async Task Handle(DeleteCategoryCommand request, CancellationToken cancellationToken)

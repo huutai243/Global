@@ -3,7 +3,7 @@ using ECommerce.Shared.Core.Exceptions;
 using ECommerce.Shared.Core.Interfaces;
 using ECommerce.Catalog.Domain.Models;
 using ECommerce.Catalog.Domain.Responses;
-using ECommerce.Infrastructure.Persistence;
+using ECommerce.Catalog.Infrastructure.Persistence;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
@@ -11,7 +11,7 @@ using Microsoft.Extensions.Logging;
 namespace ECommerce.Catalog.Application.GetProductById;
 
 public sealed class GetProductByIdQueryHandler(
-    ECommerceDbContext dbContext,
+    CatalogDbContext dbContext,
     IProductCache productCache,
     ILogger<GetProductByIdQueryHandler> logger)
     : IRequestHandler<GetProductByIdQuery, ProductResponse>

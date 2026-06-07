@@ -5,9 +5,12 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
   <ItemGroup>
+    <PackageReference Include="MediatR" Version="12.4.1" />
     <PackageReference Include="Swashbuckle.AspNetCore" Version="6.6.2" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\ECommerce.Payment.Application\ECommerce.Payment.Application.csproj" />
+    <ProjectReference Include="..\ECommerce.Payment.Infrastructure\ECommerce.Payment.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\..\Infras\ECommerce.Infrastructure.Payment\ECommerce.Infrastructure.Payment.csproj" />
   </ItemGroup>
 </Project>

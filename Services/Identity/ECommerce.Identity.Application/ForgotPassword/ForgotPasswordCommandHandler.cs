@@ -1,5 +1,5 @@
 using ECommerce.Identity.Domain.Models;
-using ECommerce.Infrastructure.Persistence;
+using ECommerce.Identity.Infrastructure.Persistence;
 using ECommerce.Infrastructure.Security.Core;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
@@ -8,7 +8,7 @@ using Microsoft.Extensions.Configuration;
 namespace ECommerce.Identity.Application.ForgotPassword;
 
 public sealed class ForgotPasswordCommandHandler(
-    ECommerceDbContext dbContext,
+    IdentityDbContext dbContext,
     IPasswordResetTokenService passwordResetTokenService,
     IEmailSender emailSender,
     IConfiguration configuration)

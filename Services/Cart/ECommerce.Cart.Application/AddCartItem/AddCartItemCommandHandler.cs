@@ -1,9 +1,8 @@
 using ECommerce.Shared.Core.Exceptions;
 using ECommerce.Shared.Core.Interfaces;
+using ECommerce.Cart.Infrastructure.Persistence;
 using ECommerce.Cart.Domain.Models;
 using ECommerce.Cart.Domain.Responses;
-using ECommerce.Catalog.Domain.Models;
-using ECommerce.Infrastructure.Persistence;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
@@ -11,7 +10,7 @@ using Microsoft.Extensions.Logging;
 namespace ECommerce.Cart.Application.AddCartItem;
 
 public sealed class AddCartItemCommandHandler(
-    ECommerceDbContext dbContext,
+    CartDbContext dbContext,
     ICurrentUserContext currentUserContext,
     ILogger<AddCartItemCommandHandler> logger)
     : IRequestHandler<AddCartItemCommand, CartResponse>
@@ -25,22 +24,10 @@ public sealed class AddCartItemCommandHandler(
             throw new BusinessRuleException("Quantity must be greater than zero.");
         }
 
-        var product = await dbContext.Products
-            .FirstOrDefaultAsync(product => product.Id == request.ProductId, cancellationToken)
-            ?? throw new NotFoundException("Product was not found.");
-
-        if (product.Status != ProductStatus.Active)
+        // TODO: Boundary violation removed. Replace with Catalog product snapshot and Inventory availability contracts.
+        if (string.IsNullOrWhiteSpace(request.ProductNameSnapshot) || request.UnitPriceSnapshot is null)
         {
-            throw new BusinessRuleException("Cannot add inactive product to cart.");
-        }
-
-        var inventory = await dbContext.InventoryItems
-            .FirstOrDefaultAsync(inventoryItem => inventoryItem.ProductId == product.Id, cancellationToken)
-            ?? throw new BusinessRuleException("Product inventory is missing.");
-
-        if (inventory.AvailableQuantity < request.Quantity)
-        {
-            throw new BusinessRuleException("Insufficient stock.");
+            throw new BusinessRuleException("Product snapshot is required before adding an item to the cart.");
         }
 
         var cart = await dbContext.Carts
@@ -59,7 +46,7 @@ public sealed class AddCartItemCommandHandler(
             dbContext.Carts.Add(cart);
         }
 
-        var existingItem = cart.Items.FirstOrDefault(cartItem => cartItem.ProductId == product.Id);
+        var existingItem = cart.Items.FirstOrDefault(cartItem => cartItem.ProductId == request.ProductId);
 
         if (existingItem is null)
         {
@@ -67,21 +54,16 @@ public sealed class AddCartItemCommandHandler(
             {
                 Id = Guid.NewGuid(),
                 CartId = cart.Id,
-                ProductId = product.Id,
-                ProductNameSnapshot = product.Name,
-                ProductImageUrlSnapshot = product.ImageUrl,
-                UnitPriceSnapshot = product.Price,
+                ProductId = request.ProductId,
+                ProductNameSnapshot = request.ProductNameSnapshot,
+                ProductImageUrlSnapshot = request.ProductImageUrlSnapshot,
+                UnitPriceSnapshot = request.UnitPriceSnapshot.Value,
                 Quantity = request.Quantity
             });
         }
         else
         {
             var newQuantity = existingItem.Quantity + request.Quantity;
-
-            if (inventory.AvailableQuantity < newQuantity)
-            {
-                throw new BusinessRuleException("Insufficient stock.");
-            }
 
             existingItem.Quantity = newQuantity;
         }

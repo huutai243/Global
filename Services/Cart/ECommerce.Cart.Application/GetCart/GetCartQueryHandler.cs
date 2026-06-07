@@ -1,14 +1,14 @@
 using ECommerce.Shared.Core.Exceptions;
 using ECommerce.Shared.Core.Interfaces;
 using ECommerce.Cart.Domain.Responses;
-using ECommerce.Infrastructure.Persistence;
+using ECommerce.Cart.Infrastructure.Persistence;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 
 namespace ECommerce.Cart.Application.GetCart;
 
 public sealed class GetCartQueryHandler(
-    ECommerceDbContext dbContext,
+    CartDbContext dbContext,
     ICurrentUserContext currentUserContext)
     : IRequestHandler<GetCartQuery, CartResponse>
 {

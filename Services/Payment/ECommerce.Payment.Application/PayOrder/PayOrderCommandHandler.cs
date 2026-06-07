@@ -4,8 +4,8 @@ using ECommerce.Shared.Core.Exceptions;
 using ECommerce.Shared.Core.Interfaces;
 using ECommerce.Payment.Domain.Interfaces;
 using ECommerce.Payment.Domain.Models;
-using ECommerce.Infrastructure.Persistence;
-using ECommerce.Infrastructure.Persistence.Models;
+using ECommerce.Payment.Infrastructure.Persistence;
+using ECommerce.Shared.Outbox;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
@@ -13,7 +13,7 @@ using Microsoft.Extensions.Logging;
 namespace ECommerce.Payment.Application.PayOrder;
 
 public sealed class PayOrderCommandHandler(
-    ECommerceDbContext dbContext,
+    PaymentDbContext dbContext,
     ICurrentUserContext currentUserContext,
     IPaymentProvider paymentProvider,
     ILogger<PayOrderCommandHandler> logger)
@@ -62,10 +62,16 @@ public sealed class PayOrderCommandHandler(
         dbContext.OutboxMessages.Add(new OutboxMessage
         {
             Id = Guid.NewGuid(),
-            EventType = eventPayload.GetType().Name,
+            MessageId = Guid.NewGuid().ToString("N"),
+            CorrelationId = request.OrderId.ToString("N"),
+            CausationId = request.OrderId.ToString("N"),
+            MessageType = eventPayload.GetType().FullName ?? eventPayload.GetType().Name,
+            SourceService = "Payment",
+            Destination = "Ordering",
             Payload = JsonSerializer.Serialize(eventPayload),
-            Status = OutboxStatus.Pending,
-            CreatedAt = DateTime.UtcNow
+            Status = OutboxMessageStatus.Pending,
+            OccurredAtUtc = DateTime.UtcNow,
+            CreatedAtUtc = DateTime.UtcNow
         });
 
         await dbContext.SaveChangesAsync(cancellationToken);

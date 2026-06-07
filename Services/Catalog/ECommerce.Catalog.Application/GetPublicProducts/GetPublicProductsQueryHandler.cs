@@ -1,13 +1,13 @@
 using ECommerce.Shared.Core.Responses;
 using ECommerce.Catalog.Domain.Models;
 using ECommerce.Catalog.Domain.Responses;
-using ECommerce.Infrastructure.Persistence;
+using ECommerce.Catalog.Infrastructure.Persistence;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 
 namespace ECommerce.Catalog.Application.GetPublicProducts;
 
-public sealed class GetPublicProductsQueryHandler(ECommerceDbContext dbContext)
+public sealed class GetPublicProductsQueryHandler(CatalogDbContext dbContext)
     : IRequestHandler<GetPublicProductsQuery, PagedResponse<ProductResponse>>
 {
     public async Task<PagedResponse<ProductResponse>> Handle(GetPublicProductsQuery request, CancellationToken cancellationToken)

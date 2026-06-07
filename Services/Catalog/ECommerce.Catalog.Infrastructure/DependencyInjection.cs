@@ -1,12 +1,17 @@
+using ECommerce.Catalog.Infrastructure.Persistence;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace ECommerce.Catalog.Infrastructure;
 
 public static class DependencyInjection
 {
-    public static IServiceCollection AddCatalogInfrastructure(this IServiceCollection services)
+    public static IServiceCollection AddCatalogInfrastructure(this IServiceCollection services, IConfiguration configuration)
     {
-        // TODO Phase 3: Move catalog-specific cache, storage, persistence, and messaging registrations here.
+        services.AddDbContext<CatalogDbContext>(options =>
+            options.UseSqlServer(configuration.GetConnectionString("ECommerceConnection")));
+
         return services;
     }
 }

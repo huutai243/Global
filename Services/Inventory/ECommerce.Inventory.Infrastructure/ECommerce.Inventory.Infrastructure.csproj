@@ -5,10 +5,15 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
   <ItemGroup>
+    <PackageReference Include="Microsoft.EntityFrameworkCore" Version="8.0.6" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="8.0.6" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.Abstractions" Version="8.0.0" />
     <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="8.0.1" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\ECommerce.Inventory.Domain\ECommerce.Inventory.Domain.csproj" />
     <ProjectReference Include="..\..\..\Shared\ECommerce.Shared.Abstractions\ECommerce.Shared.Abstractions.csproj" />
+    <ProjectReference Include="..\..\..\Shared\ECommerce.Shared.Inbox\ECommerce.Shared.Inbox.csproj" />
+    <ProjectReference Include="..\..\..\Shared\ECommerce.Shared.Outbox\ECommerce.Shared.Outbox.csproj" />
   </ItemGroup>
 </Project>

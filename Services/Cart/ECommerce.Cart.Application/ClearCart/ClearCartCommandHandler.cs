@@ -1,13 +1,13 @@
 using ECommerce.Shared.Core.Exceptions;
 using ECommerce.Shared.Core.Interfaces;
-using ECommerce.Infrastructure.Persistence;
+using ECommerce.Cart.Infrastructure.Persistence;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 
 namespace ECommerce.Cart.Application.ClearCart;
 
 public sealed class ClearCartCommandHandler(
-    ECommerceDbContext dbContext,
+    CartDbContext dbContext,
     ICurrentUserContext currentUserContext)
     : IRequestHandler<ClearCartCommand>
 {

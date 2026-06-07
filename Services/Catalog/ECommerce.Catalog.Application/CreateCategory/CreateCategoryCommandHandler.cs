@@ -1,13 +1,13 @@
 using ECommerce.Catalog.Domain.Models;
 using ECommerce.Catalog.Domain.Responses;
-using ECommerce.Infrastructure.Persistence;
+using ECommerce.Catalog.Infrastructure.Persistence;
 using ECommerce.Infrastructure.Storage;
 using MediatR;
 
 namespace ECommerce.Catalog.Application.CreateCategory;
 
 public sealed class CreateCategoryCommandHandler(
-    ECommerceDbContext dbContext,
+    CatalogDbContext dbContext,
     IBlobStorageService blobStorageService)
     : IRequestHandler<CreateCategoryCommand, CategoryResponse>
 {

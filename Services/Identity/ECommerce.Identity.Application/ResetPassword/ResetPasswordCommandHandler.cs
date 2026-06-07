@@ -1,6 +1,6 @@
 using ECommerce.Shared.Core.Exceptions;
 using ECommerce.Identity.Application.Shared;
-using ECommerce.Infrastructure.Persistence;
+using ECommerce.Identity.Infrastructure.Persistence;
 using ECommerce.Infrastructure.Security.Core;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
@@ -8,7 +8,7 @@ using Microsoft.EntityFrameworkCore;
 namespace ECommerce.Identity.Application.ResetPassword;
 
 public sealed class ResetPasswordCommandHandler(
-    ECommerceDbContext dbContext,
+    IdentityDbContext dbContext,
     IPasswordResetTokenService passwordResetTokenService)
     : IRequestHandler<ResetPasswordCommand>
 {

@@ -1,5 +1,5 @@
 using ECommerce.Identity.Application.Shared;
-using ECommerce.Infrastructure.Persistence;
+using ECommerce.Identity.Infrastructure.Persistence;
 using ECommerce.Infrastructure.Security.Core;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
@@ -8,7 +8,7 @@ using Microsoft.Extensions.Logging;
 namespace ECommerce.Identity.Application.Login;
 
 public sealed class LoginCommandHandler(
-    ECommerceDbContext dbContext,
+    IdentityDbContext dbContext,
     IJwtTokenService jwtTokenService,
     ILogger<LoginCommandHandler> logger)
     : IRequestHandler<LoginCommand, AuthResponse>

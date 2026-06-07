@@ -3,7 +3,7 @@ using ECommerce.Inventory.Worker;
 using ECommerce.Inventory.Worker.Consumers;
 
 var builder = Host.CreateApplicationBuilder(args);
-builder.Services.AddInventoryInfrastructure();
+builder.Services.AddInventoryInfrastructure(builder.Configuration);
 builder.Services.AddScoped<ReserveInventoryCommandConsumer>();
 builder.Services.AddScoped<ConfirmInventoryReservationCommandConsumer>();
 builder.Services.AddScoped<ReleaseInventoryReservationCommandConsumer>();

@@ -90,4 +90,15 @@ public sealed class CartController(ISender sender) : ControllerBase
 
         return NoContent();
     }
+
+    [HttpGet("checkout-snapshot")]
+    [ProducesResponseType(typeof(CartResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    public async Task<IActionResult> GetCheckoutSnapshotAsync(CancellationToken cancellationToken)
+    {
+        var response = await sender.Send(new GetCartQuery(), cancellationToken);
+
+        return Ok(response);
+    }
 }

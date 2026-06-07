@@ -15,7 +15,6 @@
     <ProjectReference Include="..\..\..\Infras\ECommerce.Infrastructure.Storage\ECommerce.Infrastructure.Storage.csproj" />
     <ProjectReference Include="..\ECommerce.Catalog.Infrastructure\ECommerce.Catalog.Infrastructure.csproj" />
     <ProjectReference Include="..\..\..\Shared\ECommerce.Shared.Core\ECommerce.Shared.Core.csproj" />
-    <ProjectReference Include="..\..\..\Infras\ECommerce.Infrastructure.Persistence\ECommerce.Infrastructure.Persistence.csproj" />
     <ProjectReference Include="..\..\..\Infras\ECommerce.Infrastructure.Redis\ECommerce.Infrastructure.Redis.csproj" />
     <ProjectReference Include="..\..\..\Infras\ECommerce.Infrastructure.Security.Core\ECommerce.Infrastructure.Security.Core.csproj" />
     <ProjectReference Include="..\..\..\Infras\ECommerce.Infrastructure.Observability\ECommerce.Infrastructure.Observability.csproj" />

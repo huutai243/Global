@@ -1,7 +1,7 @@
 using ECommerce.Shared.Core.Exceptions;
 using ECommerce.Shared.Core.Interfaces;
 using ECommerce.Identity.Application.Shared;
-using ECommerce.Infrastructure.Persistence;
+using ECommerce.Identity.Infrastructure.Persistence;
 using ECommerce.Infrastructure.Security.Core;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
@@ -10,7 +10,7 @@ using Microsoft.Extensions.Logging;
 namespace ECommerce.Identity.Application.Profile;
 
 public sealed class UpdateProfileCommandHandler(
-    ECommerceDbContext dbContext,
+    IdentityDbContext dbContext,
     ICurrentUserContext currentUserContext,
     ILogger<UpdateProfileCommandHandler> logger)
     : IRequestHandler<UpdateProfileCommand, ProfileResponse>

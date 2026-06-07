@@ -1,12 +1,17 @@
+using ECommerce.Payment.Infrastructure.Persistence;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace ECommerce.Payment.Infrastructure;
 
 public static class DependencyInjection
 {
-    public static IServiceCollection AddPaymentInfrastructure(this IServiceCollection services)
+    public static IServiceCollection AddPaymentInfrastructure(this IServiceCollection services, IConfiguration configuration)
     {
-        // TODO Phase 3: Move payment-specific provider, persistence, outbox, inbox, and messaging registrations here.
+        services.AddDbContext<PaymentDbContext>(options =>
+            options.UseSqlServer(configuration.GetConnectionString("ECommerceConnection")));
+
         return services;
     }
 }

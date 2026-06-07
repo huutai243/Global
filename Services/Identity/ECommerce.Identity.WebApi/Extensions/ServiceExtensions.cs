@@ -5,7 +5,7 @@ using ECommerce.Identity.Application.Register;
 using ECommerce.Identity.Application.ResetPassword;
 using ECommerce.Identity.Domain.Models;
 using ECommerce.Infrastructure.Observability;
-using ECommerce.Infrastructure.Persistence.Extensions;
+using ECommerce.Identity.Infrastructure;
 using ECommerce.Infrastructure.Security;
 using ECommerce.Infrastructure.Security.Core;
 using ECommerce.Shared.Core.Behaviors;
@@ -25,7 +25,7 @@ public static class ServiceExtensions
         this IServiceCollection services,
         IConfiguration configuration)
     {
-        services.AddDatabase(configuration);
+        services.AddIdentityInfrastructure(configuration);
         services.AddObservability();
 
         services.AddScoped<ICurrentUserContext, CurrentUserContext>();

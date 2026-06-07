@@ -2,13 +2,13 @@ using ECommerce.Shared.Core.Constants;
 using ECommerce.Shared.Core.Exceptions;
 using ECommerce.Shared.Core.Interfaces;
 using ECommerce.Catalog.Domain.Responses;
-using ECommerce.Infrastructure.Persistence;
+using ECommerce.Catalog.Infrastructure.Persistence;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 
 namespace ECommerce.Catalog.Application.UpdateProduct;
 
-public sealed class UpdateProductCommandHandler(ECommerceDbContext dbContext, IProductCache productCache)
+public sealed class UpdateProductCommandHandler(CatalogDbContext dbContext, IProductCache productCache)
     : IRequestHandler<UpdateProductCommand, ProductResponse>
 {
     public async Task<ProductResponse> Handle(UpdateProductCommand request, CancellationToken cancellationToken)

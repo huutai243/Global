@@ -1,13 +1,14 @@
 using System.Text.Json;
 using ECommerce.Shared.Contracts;
-using ECommerce.Infrastructure.Persistence;
-using ECommerce.Infrastructure.Persistence.Models;
+using ECommerce.Payment.Infrastructure.Persistence;
 using ECommerce.Payment.Domain.Models;
+using ECommerce.Shared.Inbox;
+using ECommerce.Shared.Outbox;
 using Microsoft.EntityFrameworkCore;
 
 namespace ECommerce.Payment.Worker.Consumers;
 
-public sealed class CreatePaymentCommandConsumer(ECommerceDbContext dbContext, ILogger<CreatePaymentCommandConsumer> logger)
+public sealed class CreatePaymentCommandConsumer(PaymentDbContext dbContext, ILogger<CreatePaymentCommandConsumer> logger)
 {
     public async Task HandleAsync(CreatePaymentCommand command, CancellationToken cancellationToken = default)
     {
@@ -49,19 +50,25 @@ public sealed class CreatePaymentCommandConsumer(ECommerceDbContext dbContext, I
     private async Task<bool> HasProcessedAsync(string messageType, Guid aggregateId, CancellationToken cancellationToken)
     {
         var key = BuildKey(messageType, aggregateId);
-        return await dbContext.IdempotencyRecords.AnyAsync(record => record.Key == key, cancellationToken);
+        return await dbContext.InboxMessages.AnyAsync(
+            record => record.MessageId == key && record.ConsumerName == nameof(CreatePaymentCommandConsumer),
+            cancellationToken);
     }
 
     private void MarkProcessed(string messageType, Guid aggregateId)
     {
-        dbContext.IdempotencyRecords.Add(new IdempotencyRecord
+        dbContext.InboxMessages.Add(new InboxMessage
         {
             Id = Guid.NewGuid(),
-            Key = BuildKey(messageType, aggregateId),
-            RequestHash = aggregateId.ToString("N"),
-            Status = "Completed",
-            CreatedAt = DateTime.UtcNow,
-            CompletedAt = DateTime.UtcNow
+            MessageId = BuildKey(messageType, aggregateId),
+            CorrelationId = aggregateId.ToString("N"),
+            CausationId = aggregateId.ToString("N"),
+            MessageType = messageType,
+            ConsumerName = nameof(CreatePaymentCommandConsumer),
+            Payload = string.Empty,
+            Status = InboxMessageStatus.Processed,
+            ReceivedAtUtc = DateTime.UtcNow,
+            ProcessedAtUtc = DateTime.UtcNow
         });
     }
 
@@ -70,10 +77,16 @@ public sealed class CreatePaymentCommandConsumer(ECommerceDbContext dbContext, I
         dbContext.OutboxMessages.Add(new OutboxMessage
         {
             Id = Guid.NewGuid(),
-            EventType = message.GetType().Name,
+            MessageId = Guid.NewGuid().ToString("N"),
+            CorrelationId = Guid.NewGuid().ToString("N"),
+            CausationId = Guid.NewGuid().ToString("N"),
+            MessageType = message.GetType().FullName ?? message.GetType().Name,
+            SourceService = "Payment",
+            Destination = "Ordering",
             Payload = JsonSerializer.Serialize(message),
-            Status = OutboxStatus.Pending,
-            CreatedAt = DateTime.UtcNow
+            Status = OutboxMessageStatus.Pending,
+            OccurredAtUtc = DateTime.UtcNow,
+            CreatedAtUtc = DateTime.UtcNow
         });
     }
 
