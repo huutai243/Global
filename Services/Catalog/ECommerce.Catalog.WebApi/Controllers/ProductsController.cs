@@ -1,5 +1,4 @@
 using ECommerce.Catalog.Domain.Responses;
-using ECommerce.Identity.Domain.Models;
 using ECommerce.Catalog.Application.CreateProduct;
 using ECommerce.Catalog.Application.DeleteProduct;
 using ECommerce.Catalog.Application.GetProductById;
@@ -10,6 +9,7 @@ using ECommerce.Catalog.WebApi.Controllers.Request;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using ECommerce.Identity.Domain.Models;
 
 namespace ECommerce.Catalog.WebApi.Controllers;
 

@@ -1,6 +1,6 @@
 ﻿using Microsoft.AspNetCore.Builder;
 
-namespace ECommerce.Infrastructure.Observability;
+namespace ECommerce.Shared.Observability;
 
 public static class ApplicationBuilderExtensions
 {

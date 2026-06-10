@@ -1,5 +1,5 @@
 ﻿using ECommerce.Infrastructure.AzureServiceBus;
-using ECommerce.Infrastructure.Observability;
+using ECommerce.Shared.Observability;
 using ECommerce.Ordering.Infrastructure;
 using ECommerce.Ordering.Worker.Options;
 

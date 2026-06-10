@@ -1,8 +1,7 @@
 ﻿using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
-using System.Net.Http;
 
-namespace ECommerce.Infrastructure.Observability;
+namespace ECommerce.Shared.Observability;
 
 public sealed class CorrelationIdMiddleware(
     RequestDelegate next,

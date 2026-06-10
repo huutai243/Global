@@ -6,10 +6,15 @@
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="MediatR" Version="12.4.1" />
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="8.0.0" />
     <PackageReference Include="Swashbuckle.AspNetCore" Version="6.6.2" />
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\..\..\Shared\ECommerce.Shared.Observability\ECommerce.Shared.Observability.csproj" />
     <ProjectReference Include="..\ECommerce.Inventory.Application\ECommerce.Inventory.Application.csproj" />
     <ProjectReference Include="..\ECommerce.Inventory.Infrastructure\ECommerce.Inventory.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\..\Infras\ECommerce.Infrastructure.Observability\ECommerce.Infrastructure.Observability.csproj" />
+    <ProjectReference Include="..\..\..\Infras\ECommerce.Infrastructure.Security.Core\ECommerce.Infrastructure.Security.Core.csproj" />
+    <ProjectReference Include="..\..\..\Shared\ECommerce.Shared.Core\ECommerce.Shared.Core.csproj" />
   </ItemGroup>
 </Project>

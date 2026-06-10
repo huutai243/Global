@@ -3,7 +3,7 @@ using Microsoft.Extensions.Logging;
 using System.Net;
 using System.Text.Json;
 
-namespace ECommerce.Infrastructure.Observability;
+namespace ECommerce.Shared.Observability;
 
 public sealed class GlobalExceptionHandlingMiddleware(RequestDelegate next, ILogger<GlobalExceptionHandlingMiddleware> logger)
 {

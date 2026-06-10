@@ -1,4 +1,4 @@
-﻿using ECommerce.Infrastructure.Observability;
+﻿using ECommerce.Shared.Observability;
 
 namespace ECommerce.Catalog.WebApi.Extensions;
 

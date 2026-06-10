@@ -15,5 +15,6 @@
     <ProjectReference Include="..\..\..\Shared\ECommerce.Shared.Contracts\ECommerce.Shared.Contracts.csproj" />
     <ProjectReference Include="..\..\..\Infras\ECommerce.Infrastructure.AzureServiceBus\ECommerce.Infrastructure.AzureServiceBus.csproj" />
 	<ProjectReference Include="..\..\..\Infras\ECommerce.Infrastructure.Observability\ECommerce.Infrastructure.Observability.csproj" />
+	<ProjectReference Include="..\..\..\Shared\ECommerce.Shared.Observability\ECommerce.Shared.Observability.csproj" />
   </ItemGroup>
 </Project>

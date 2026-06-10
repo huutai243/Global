@@ -1,13 +1,9 @@
-using ECommerce.Inventory.Infrastructure;
-using ECommerce.Inventory.Worker;
-using ECommerce.Inventory.Worker.Consumers;
+using ECommerce.Inventory.Worker.Extensions;
 
 var builder = Host.CreateApplicationBuilder(args);
-builder.Services.AddInventoryInfrastructure(builder.Configuration);
-builder.Services.AddScoped<ReserveInventoryCommandConsumer>();
-builder.Services.AddScoped<ConfirmInventoryReservationCommandConsumer>();
-builder.Services.AddScoped<ReleaseInventoryReservationCommandConsumer>();
-builder.Services.AddHostedService<Worker>();
+
+builder.Services.AddInventoryWorkerServices(builder.Configuration);
 
 var host = builder.Build();
-host.Run();
+
+await host.RunAsync();

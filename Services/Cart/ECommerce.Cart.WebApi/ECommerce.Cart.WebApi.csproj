@@ -9,6 +9,7 @@
     <PackageReference Include="Swashbuckle.AspNetCore" Version="6.6.2" />
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\..\..\Shared\ECommerce.Shared.Observability\ECommerce.Shared.Observability.csproj" />
     <ProjectReference Include="..\ECommerce.Cart.Application\ECommerce.Cart.Application.csproj" />
     <ProjectReference Include="..\ECommerce.Cart.Domain\ECommerce.Cart.Domain.csproj" />
     <ProjectReference Include="..\ECommerce.Cart.Infrastructure\ECommerce.Cart.Infrastructure.csproj" />

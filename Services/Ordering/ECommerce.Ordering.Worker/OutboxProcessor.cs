@@ -29,6 +29,7 @@ public sealed class OutboxProcessor(
             try
             {
                 await ProcessBatchAsync(stoppingToken);
+                await DelayNextPollAsync(stoppingToken);
             }
             catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
             {
@@ -37,49 +38,95 @@ public sealed class OutboxProcessor(
             catch (Exception exception)
             {
                 logger.LogError(exception, "Ordering outbox processor failed while polling.");
+                await DelayNextPollAsync(stoppingToken);
             }
-
-            await Task.Delay(
-                TimeSpan.FromSeconds(_options.PollingIntervalSeconds),
-                stoppingToken);
         }
+
+        logger.LogInformation("Ordering outbox processor stopped.");
+    }
+
+    private async Task DelayNextPollAsync(CancellationToken cancellationToken)
+    {
+        await Task.Delay(TimeSpan.FromSeconds(_options.PollingIntervalSeconds), cancellationToken);
     }
 
     private async Task ProcessBatchAsync(CancellationToken cancellationToken)
     {
-        using var scope = serviceScopeFactory.CreateScope();
+        await using var scope = serviceScopeFactory.CreateAsyncScope();
 
         var dbContext = scope.ServiceProvider.GetRequiredService<OrderingDbContext>();
         var publisher = scope.ServiceProvider.GetRequiredService<IMessagePublisher>();
         var messageNameResolver = scope.ServiceProvider.GetRequiredService<IMessageNameResolver>();
 
-        var utcNow = DateTime.UtcNow;
-        var processingTimeoutUtc = utcNow.AddSeconds(-_options.ProcessingTimeoutSeconds);
+        var messageIds = await GetProcessableMessageIdsAsync(dbContext, cancellationToken);
 
-        var messages = await dbContext.OutboxMessages
-            .Where(message =>
-                (
-                    (message.Status == OutboxMessageStatus.Pending || message.Status == OutboxMessageStatus.Failed)
-                    && (message.NextRetryAtUtc == null || message.NextRetryAtUtc <= utcNow)
-                )
-                || (
-                    message.Status == OutboxMessageStatus.Processing
-                    && message.ProcessingStartedAtUtc != null
-                    && message.ProcessingStartedAtUtc <= processingTimeoutUtc
-                ))
+        foreach (var messageId in messageIds)
+        {
+            var message = await ClaimMessageAsync(dbContext, messageId, cancellationToken);
+
+            if (message is null)
+            {
+                continue;
+            }
+
+            try
+            {
+                await ProcessMessageAsync(dbContext, publisher, messageNameResolver, message, cancellationToken);
+            }
+            finally
+            {
+                dbContext.ChangeTracker.Clear();
+            }
+        }
+    }
+
+    private async Task<IReadOnlyCollection<Guid>> GetProcessableMessageIdsAsync(OrderingDbContext dbContext, CancellationToken cancellationToken)
+    {
+        var utcNow = DateTime.UtcNow;
+
+        return await GetProcessableMessages(dbContext, utcNow)
+            .AsNoTracking()
             .OrderBy(message => message.CreatedAtUtc)
+            .Select(message => message.Id)
             .Take(_options.BatchSize)
             .ToListAsync(cancellationToken);
+    }
 
-        foreach (var message in messages)
-        {
-            await ProcessMessageAsync(
-                dbContext,
-                publisher,
-                messageNameResolver,
-                message,
+    private async Task<OutboxMessage?> ClaimMessageAsync(OrderingDbContext dbContext, Guid messageId, CancellationToken cancellationToken)
+    {
+        var utcNow = DateTime.UtcNow;
+
+        var affectedRows = await GetProcessableMessages(dbContext, utcNow)
+            .Where(message => message.Id == messageId)
+            .ExecuteUpdateAsync(setters => setters
+                .SetProperty(message => message.Status, OutboxMessageStatus.Processing)
+                .SetProperty(message => message.ProcessingStartedAtUtc, (DateTime?)utcNow)
+                .SetProperty(message => message.ErrorMessage, (string?)null),
                 cancellationToken);
+
+        if (affectedRows == 0)
+        {
+            return null;
         }
+
+        return await dbContext.OutboxMessages
+            .FirstOrDefaultAsync(message => message.Id == messageId, cancellationToken);
+    }
+
+    private IQueryable<OutboxMessage> GetProcessableMessages(OrderingDbContext dbContext, DateTime utcNow)
+    {
+        var processingTimeoutUtc = utcNow.AddSeconds(-_options.ProcessingTimeoutSeconds);
+
+        return dbContext.OutboxMessages.Where(message =>
+            (
+                (message.Status == OutboxMessageStatus.Pending || message.Status == OutboxMessageStatus.Failed)
+                && (message.NextRetryAtUtc == null || message.NextRetryAtUtc <= utcNow)
+            )
+            || (
+                message.Status == OutboxMessageStatus.Processing
+                && message.ProcessingStartedAtUtc != null
+                && message.ProcessingStartedAtUtc <= processingTimeoutUtc
+            ));
     }
 
     private async Task ProcessMessageAsync(
@@ -91,17 +138,7 @@ public sealed class OutboxProcessor(
     {
         try
         {
-            message.Status = OutboxMessageStatus.Processing;
-            message.ProcessingStartedAtUtc = DateTime.UtcNow;
-            message.ErrorMessage = null;
-
-            await dbContext.SaveChangesAsync(cancellationToken);
-
-            await PublishAsync(
-                publisher,
-                messageNameResolver,
-                message,
-                cancellationToken);
+            await PublishAsync(publisher, messageNameResolver, message, cancellationToken);
 
             message.Status = OutboxMessageStatus.Processed;
             message.ProcessedAtUtc = DateTime.UtcNow;
@@ -116,6 +153,10 @@ public sealed class OutboxProcessor(
                 message.CorrelationId,
                 message.MessageType);
         }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
         catch (DbUpdateConcurrencyException exception)
         {
             logger.LogInformation(
@@ -127,11 +168,7 @@ public sealed class OutboxProcessor(
         }
         catch (Exception exception)
         {
-            await MarkFailedAsync(
-                dbContext,
-                message,
-                exception,
-                cancellationToken);
+            await MarkFailedAsync(dbContext, message, exception, cancellationToken);
         }
     }
 
@@ -141,9 +178,9 @@ public sealed class OutboxProcessor(
         OutboxMessage message,
         CancellationToken cancellationToken)
     {
-        var expectedMessageType = messageNameResolver.ResolveMessageName(typeof(ReserveInventoryCommand));
+        var reserveInventoryMessageType = messageNameResolver.ResolveMessageName(typeof(ReserveInventoryCommand));
 
-        if (!string.Equals(message.MessageType, expectedMessageType, StringComparison.Ordinal))
+        if (!string.Equals(message.MessageType, reserveInventoryMessageType, StringComparison.Ordinal))
         {
             throw new InvalidOperationException($"Unsupported outbox message type '{message.MessageType}'.");
         }
@@ -154,7 +191,8 @@ public sealed class OutboxProcessor(
 
         if (command is null)
         {
-            throw new InvalidOperationException($"Outbox payload for message '{message.MessageId}' could not be deserialized.");
+            throw new InvalidOperationException(
+                $"Outbox payload for message '{message.MessageId}' could not be deserialized.");
         }
 
         var metadata = new MessageMetadata(
@@ -163,10 +201,7 @@ public sealed class OutboxProcessor(
             message.CausationId,
             message.OccurredAtUtc);
 
-        await publisher.PublishAsync(
-            command,
-            metadata,
-            cancellationToken);
+        await publisher.PublishAsync(command, metadata, cancellationToken);
     }
 
     private async Task MarkFailedAsync(

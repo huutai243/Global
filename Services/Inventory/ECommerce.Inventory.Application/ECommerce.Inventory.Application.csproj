@@ -16,5 +16,9 @@
     <ProjectReference Include="..\ECommerce.Inventory.Infrastructure\ECommerce.Inventory.Infrastructure.csproj" />
     <ProjectReference Include="..\..\..\Infras\ECommerce.Infrastructure.Security.Core\ECommerce.Infrastructure.Security.Core.csproj" />
     <ProjectReference Include="..\..\..\Infras\ECommerce.Infrastructure.Storage\ECommerce.Infrastructure.Storage.csproj" />
+    <ProjectReference Include="..\..\..\Shared\ECommerce.Shared.Contracts\ECommerce.Shared.Contracts.csproj" />
+    <ProjectReference Include="..\..\..\Shared\ECommerce.Shared.Inbox\ECommerce.Shared.Inbox.csproj" />
+    <ProjectReference Include="..\..\..\Shared\ECommerce.Shared.Outbox\ECommerce.Shared.Outbox.csproj" />
+    <ProjectReference Include="..\..\..\Shared\ECommerce.Shared.Messaging\ECommerce.Shared.Messaging.csproj" />
   </ItemGroup>
 </Project>

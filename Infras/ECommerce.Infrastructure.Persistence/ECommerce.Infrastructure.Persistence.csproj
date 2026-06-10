@@ -11,9 +11,11 @@
   <ItemGroup>
     <ProjectReference Include="..\..\Services\Cart\ECommerce.Cart.Domain\ECommerce.Cart.Domain.csproj" />
     <ProjectReference Include="..\..\Services\Catalog\ECommerce.Catalog.Domain\ECommerce.Catalog.Domain.csproj" />
-    <ProjectReference Include="..\..\Services\Identity\ECommerce.Identity.Domain\ECommerce.Identity.Domain.csproj" />
     <ProjectReference Include="..\..\Services\Inventory\ECommerce.Inventory.Domain\ECommerce.Inventory.Domain.csproj" />
     <ProjectReference Include="..\..\Services\Ordering\ECommerce.Ordering.Domain\ECommerce.Ordering.Domain.csproj" />
     <ProjectReference Include="..\..\Services\Payment\ECommerce.Payment.Domain\ECommerce.Payment.Domain.csproj" />
+    <ProjectReference Include="..\..\Services\Identity\ECommerce.Identity.Domain\ECommerce.Identity.Domain.csproj" />
+    <ProjectReference Include="..\..\Services\Identity\ECommerce.Identity.Application\ECommerce.Identity.Application.csproj" />
+    <ProjectReference Include="..\..\Services\Identity\ECommerce.Identity.Infrastructure\ECommerce.Identity.Infrastructure.csproj" />
   </ItemGroup>
 </Project>

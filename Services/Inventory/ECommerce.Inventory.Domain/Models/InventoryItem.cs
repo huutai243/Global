@@ -1,6 +1,6 @@
 namespace ECommerce.Inventory.Domain.Models;
 
-public class InventoryItem
+public sealed class InventoryItem
 {
     public Guid Id { get; set; }
 
@@ -10,11 +10,9 @@ public class InventoryItem
 
     public int ReservedQuantity { get; set; }
 
-    public int SoldQuantity { get; set; }
+    public DateTime CreatedAtUtc { get; set; }
+
+    public DateTime? UpdatedAtUtc { get; set; }
 
     public byte[] RowVersion { get; set; } = [];
-
-    public DateTime CreatedAt { get; set; }
-
-    public DateTime? UpdatedAt { get; set; }
 }

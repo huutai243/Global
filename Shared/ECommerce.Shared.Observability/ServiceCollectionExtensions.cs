@@ -1,6 +1,6 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
 
-namespace ECommerce.Infrastructure.Observability;
+namespace ECommerce.Shared.Observability;
 
 public static class ServiceCollectionExtensions
 {

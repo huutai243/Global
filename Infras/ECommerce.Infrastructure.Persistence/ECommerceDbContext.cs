@@ -16,8 +16,9 @@ public class ECommerceDbContext(DbContextOptions<ECommerceDbContext> options) : 
     public DbSet<Category> Categories => Set<Category>();
 
     public DbSet<InventoryItem> InventoryItems => Set<InventoryItem>();
+    public DbSet<StockReservation> StockReservation => Set<StockReservation>();
+    public DbSet<StockReservationItem> StockReservationItem => Set<StockReservationItem>();
 
-    public DbSet<InventoryTransaction> InventoryTransactions => Set<InventoryTransaction>();
 
     public DbSet<ApplicationUser> ApplicationUsers => Set<ApplicationUser>();
     public DbSet<PasswordResetToken> PasswordResetTokens => Set<PasswordResetToken>();

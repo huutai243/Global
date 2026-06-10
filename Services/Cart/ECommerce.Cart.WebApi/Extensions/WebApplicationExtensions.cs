@@ -1,5 +1,4 @@
-﻿using ECommerce.Infrastructure.Observability;
-
+﻿using ECommerce.Shared.Observability;
 namespace ECommerce.Cart.WebApi.Extensions;
 
 public static class WebApplicationExtensions

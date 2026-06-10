@@ -4,7 +4,7 @@ using ECommerce.Identity.Application.Login;
 using ECommerce.Identity.Application.Register;
 using ECommerce.Identity.Application.ResetPassword;
 using ECommerce.Identity.Domain.Models;
-using ECommerce.Infrastructure.Observability;
+using ECommerce.Shared.Observability;
 using ECommerce.Identity.Infrastructure;
 using ECommerce.Infrastructure.Security;
 using ECommerce.Infrastructure.Security.Core;

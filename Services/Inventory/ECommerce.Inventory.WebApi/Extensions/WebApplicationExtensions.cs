@@ -1,10 +1,10 @@
 ﻿using ECommerce.Shared.Observability;
 
-namespace ECommerce.Ordering.WebApi.Extensions;
+namespace ECommerce.Inventory.WebApi.Extensions;
 
 public static class WebApplicationExtensions
 {
-    public static WebApplication UseOrderingWebApi(this WebApplication app)
+    public static WebApplication UseInventoryWebApi(this WebApplication app)
     {
         app.UseCorrelationId();
         app.UseGlobalExceptionHandling();

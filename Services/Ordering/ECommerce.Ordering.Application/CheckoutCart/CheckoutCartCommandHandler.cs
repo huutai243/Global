@@ -27,37 +27,50 @@ public sealed class CheckoutCartCommandHandler(
         CheckoutCartCommand request,
         CancellationToken cancellationToken)
     {
+        var customerId = GetRequiredCustomerId();
+        var idempotencyKey = GetRequiredIdempotencyKey(request);
+
+        var existingOrder = await FindExistingOrderAsync(customerId, idempotencyKey, cancellationToken);
+
+        if (existingOrder is not null)
+        {
+            LogIdempotencyHit(existingOrder, idempotencyKey);
+            return MapToResponse(existingOrder);
+        }
+
+        var cart = await GetValidatedCheckoutSnapshotAsync(customerId, cancellationToken);
+
+        var utcNow = DateTime.UtcNow;
+
+        var order = CreateOrder(customerId, idempotencyKey, cart, utcNow);
+
+        var outboxMessage = CreateReserveInventoryOutboxMessage(order, idempotencyKey, utcNow);
+
+        return await CommitCheckoutAsync(order, outboxMessage, customerId, idempotencyKey, cancellationToken);
+    }
+
+    private Guid GetRequiredCustomerId()
+    {
         if (currentUserContext.CustomerId is null || currentUserContext.CustomerId == Guid.Empty)
         {
             throw new ForbiddenAccessException("Customer context is missing.");
         }
 
+        return currentUserContext.CustomerId.Value;
+    }
+
+    private static string GetRequiredIdempotencyKey(CheckoutCartCommand request)
+    {
         if (string.IsNullOrWhiteSpace(request.IdempotencyKey))
         {
             throw new BusinessRuleException("Checkout idempotency key is required.");
         }
 
-        var customerId = currentUserContext.CustomerId.Value;
-        var idempotencyKey = request.IdempotencyKey;
+        return request.IdempotencyKey.Trim();
+    }
 
-        // Idempotency prevents duplicated orders when the same checkout request is retried.
-        var existingOrder = await FindExistingOrderAsync(
-            customerId,
-            idempotencyKey,
-            cancellationToken);
-
-        if (existingOrder is not null)
-        {
-            logger.LogInformation(
-                "Checkout idempotency hit. CustomerId: {CustomerId}, OrderId: {OrderId}, IdempotencyKey: {IdempotencyKey}",
-                customerId,
-                existingOrder.Id,
-                idempotencyKey);
-
-            return MapToResponse(existingOrder);
-        }
-
-        // The cart snapshot freezes checkout data such as product name, unit price, and quantity.
+    private async Task<CheckoutCartSnapshot> GetValidatedCheckoutSnapshotAsync(Guid customerId, CancellationToken cancellationToken)
+    {
         var cart = await cartCheckoutClient.GetCheckoutSnapshotAsync(cancellationToken);
 
         if (cart.CustomerId != customerId)
@@ -70,25 +83,16 @@ public sealed class CheckoutCartCommandHandler(
             throw new BusinessRuleException("Cannot checkout an empty cart.");
         }
 
-        var utcNow = DateTime.UtcNow;
+        return cart;
+    }
 
-        var order = CreateOrder(
-            customerId,
-            idempotencyKey,
-            cart,
-            utcNow);
-
-        var reserveInventoryCommand = CreateReserveInventoryCommand(order, utcNow);
-
-        // Outbox keeps order creation and event publishing reliable across service failures.
-        var outboxMessage = outboxMessageFactory.Create(
-            reserveInventoryCommand,
-            SourceService,
-            DestinationService,
-            Guid.NewGuid().ToString("N"),
-            idempotencyKey,
-            utcNow);
-
+    private async Task<CheckoutResponse> CommitCheckoutAsync(
+        Order order,
+        OutboxMessage outboxMessage,
+        Guid customerId,
+        string idempotencyKey,
+        CancellationToken cancellationToken)
+    {
         await using var transaction = await dbContext.Database.BeginTransactionAsync(cancellationToken);
 
         try
@@ -99,11 +103,7 @@ public sealed class CheckoutCartCommandHandler(
             await dbContext.SaveChangesAsync(cancellationToken);
             await transaction.CommitAsync(cancellationToken);
 
-            logger.LogInformation(
-                "Checkout committed. OrderId: {OrderId}, OutboxMessageId: {MessageId}, CorrelationId: {CorrelationId}",
-                order.Id,
-                outboxMessage.MessageId,
-                outboxMessage.CorrelationId);
+            LogCheckoutCommitted(order, outboxMessage);
 
             return MapToResponse(order);
         }
@@ -112,7 +112,6 @@ public sealed class CheckoutCartCommandHandler(
             await transaction.RollbackAsync(cancellationToken);
             dbContext.ChangeTracker.Clear();
 
-            // Another request may have inserted the same idempotent order concurrently.
             var idempotentOrder = await FindExistingOrderAsync(
                 customerId,
                 idempotencyKey,
@@ -123,20 +122,13 @@ public sealed class CheckoutCartCommandHandler(
                 throw;
             }
 
-            logger.LogInformation(
-                "Checkout idempotency race resolved. CustomerId: {CustomerId}, OrderId: {OrderId}, IdempotencyKey: {IdempotencyKey}",
-                customerId,
-                idempotentOrder.Id,
-                idempotencyKey);
+            LogIdempotencyRaceResolved(idempotentOrder, idempotencyKey);
 
             return MapToResponse(idempotentOrder);
         }
     }
 
-    private async Task<Order?> FindExistingOrderAsync(
-        Guid customerId,
-        string idempotencyKey,
-        CancellationToken cancellationToken)
+    private async Task<Order?> FindExistingOrderAsync(Guid customerId, string idempotencyKey, CancellationToken cancellationToken)
     {
         return await dbContext.Orders
             .AsNoTracking()
@@ -144,6 +136,19 @@ public sealed class CheckoutCartCommandHandler(
                 order => order.CustomerId == customerId
                     && order.IdempotencyKey == idempotencyKey,
                 cancellationToken);
+    }
+
+    private OutboxMessage CreateReserveInventoryOutboxMessage(Order order, string idempotencyKey, DateTime utcNow)
+    {
+        var reserveInventoryCommand = CreateReserveInventoryCommand(order, utcNow);
+
+        return outboxMessageFactory.Create(
+            reserveInventoryCommand,
+            SourceService,
+            DestinationService,
+            Guid.NewGuid().ToString("N"),
+            idempotencyKey,
+            utcNow);
     }
 
     private static Order CreateOrder(
@@ -204,6 +209,33 @@ public sealed class CheckoutCartCommandHandler(
             order.CustomerId,
             order.TotalAmount,
             order.Status.ToString());
+    }
+
+    private void LogIdempotencyHit(Order order, string idempotencyKey)
+    {
+        logger.LogInformation(
+            "Checkout idempotency hit. CustomerId: {CustomerId}, OrderId: {OrderId}, IdempotencyKey: {IdempotencyKey}",
+            order.CustomerId,
+            order.Id,
+            idempotencyKey);
+    }
+
+    private void LogCheckoutCommitted(Order order, OutboxMessage outboxMessage)
+    {
+        logger.LogInformation(
+            "Checkout committed. OrderId: {OrderId}, OutboxMessageId: {MessageId}, CorrelationId: {CorrelationId}",
+            order.Id,
+            outboxMessage.MessageId,
+            outboxMessage.CorrelationId);
+    }
+
+    private void LogIdempotencyRaceResolved(Order order, string idempotencyKey)
+    {
+        logger.LogInformation(
+            "Checkout idempotency race resolved. CustomerId: {CustomerId}, OrderId: {OrderId}, IdempotencyKey: {IdempotencyKey}",
+            order.CustomerId,
+            order.Id,
+            idempotencyKey);
     }
 
     private static bool IsUniqueConstraintViolation(DbUpdateException exception)

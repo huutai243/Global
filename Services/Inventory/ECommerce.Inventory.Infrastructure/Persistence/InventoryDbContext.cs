@@ -5,79 +5,86 @@ using Microsoft.EntityFrameworkCore;
 
 namespace ECommerce.Inventory.Infrastructure.Persistence;
 
-public sealed class InventoryDbContext(DbContextOptions<InventoryDbContext> options) : DbContext(options)
+public sealed class InventoryDbContext(DbContextOptions<InventoryDbContext> options)
+    : DbContext(options)
 {
     public DbSet<InventoryItem> InventoryItems => Set<InventoryItem>();
-
-    public DbSet<InventoryTransaction> InventoryTransactions => Set<InventoryTransaction>();
-
-    public DbSet<OutboxMessage> OutboxMessages => Set<OutboxMessage>();
-
+    public DbSet<StockReservation> StockReservations => Set<StockReservation>();
+    public DbSet<StockReservationItem> StockReservationItems => Set<StockReservationItem>();
     public DbSet<InboxMessage> InboxMessages => Set<InboxMessage>();
+    public DbSet<OutboxMessage> OutboxMessages => Set<OutboxMessage>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
-        modelBuilder.Entity<InventoryItem>(entity =>
+        modelBuilder.Entity<InventoryItem>(builder =>
         {
-            entity.HasKey(inventoryItem => inventoryItem.Id);
-            entity.HasIndex(inventoryItem => inventoryItem.ProductId).IsUnique();
-            entity.Property(inventoryItem => inventoryItem.RowVersion).IsRowVersion();
+            builder.HasKey(x => x.Id);
+            builder.HasIndex(x => x.ProductId).IsUnique();
+            builder.Property(x => x.RowVersion).IsRowVersion();
         });
 
-        modelBuilder.Entity<InventoryTransaction>(entity =>
+        modelBuilder.Entity<StockReservation>(builder =>
         {
-            entity.HasKey(transaction => transaction.Id);
-            entity.Property(transaction => transaction.Reason).HasMaxLength(500).IsRequired();
-            entity.HasIndex(transaction => transaction.ProductId);
+            builder.HasKey(x => x.Id);
+            builder.HasIndex(x => x.OrderId).IsUnique();
+
+            builder.Property(x => x.Status)
+                .HasConversion<string>()
+                .HasMaxLength(50);
+
+            builder.Property(x => x.FailureReason)
+                .HasMaxLength(500);
+
+            builder.HasMany(x => x.Items)
+                .WithOne(x => x.StockReservation)
+                .HasForeignKey(x => x.StockReservationId);
         });
 
-        // TODO: Add InventoryReservation DbSet/configuration when the reservation entity is introduced.
-        ConfigureOutbox(modelBuilder);
-        ConfigureInbox(modelBuilder);
+        modelBuilder.Entity<StockReservationItem>(builder =>
+        {
+            builder.HasKey(x => x.Id);
+
+            builder.HasIndex(x => new { x.StockReservationId, x.ProductId })
+                .IsUnique();
+
+            builder.Property(x => x.ProductNameSnapshot)
+                .HasMaxLength(300)
+                .IsRequired();
+        });
+
+        modelBuilder.Entity<InboxMessage>(builder =>
+        {
+            builder.HasKey(x => x.Id);
+
+            builder.HasIndex(x => new { x.MessageId, x.ConsumerName })
+                .IsUnique();
+
+            builder.Property(x => x.Status)
+                .HasConversion<string>()
+                .HasMaxLength(50);
+
+            builder.Property(x => x.RowVersion)
+                .IsRowVersion();
+        });
+
+        modelBuilder.Entity<OutboxMessage>(builder =>
+        {
+            builder.HasKey(x => x.Id);
+
+            builder.HasIndex(x => x.MessageId)
+                .IsUnique();
+
+            builder.HasIndex(x => new { x.Status, x.NextRetryAtUtc, x.CreatedAtUtc });
+            builder.HasIndex(x => new { x.Status, x.ProcessingStartedAtUtc });
+
+            builder.Property(x => x.Status)
+                .HasConversion<string>()
+                .HasMaxLength(50);
+
+            builder.Property(x => x.RowVersion)
+                .IsRowVersion();
+        });
 
         base.OnModelCreating(modelBuilder);
-    }
-
-    private static void ConfigureOutbox(ModelBuilder modelBuilder)
-    {
-        modelBuilder.Entity<OutboxMessage>(entity =>
-        {
-            entity.ToTable("OutboxMessages");
-            entity.HasKey(message => message.Id);
-            entity.Property(message => message.MessageId).HasMaxLength(100).IsRequired();
-            entity.Property(message => message.CorrelationId).HasMaxLength(100).IsRequired();
-            entity.Property(message => message.CausationId).HasMaxLength(100).IsRequired();
-            entity.Property(message => message.MessageType).HasMaxLength(500).IsRequired();
-            entity.Property(message => message.SourceService).HasMaxLength(100).IsRequired();
-            entity.Property(message => message.Destination).HasMaxLength(200).IsRequired();
-            entity.Property(message => message.Payload).IsRequired();
-            entity.Property(message => message.Status).HasConversion<string>().HasMaxLength(50).IsRequired();
-            entity.Property(message => message.ErrorMessage).HasMaxLength(4000);
-            entity.Property(message => message.RowVersion).IsRowVersion();
-            entity.HasIndex(message => message.MessageId).IsUnique();
-            entity.HasIndex(message => new { message.Status, message.NextRetryAtUtc, message.CreatedAtUtc });
-            entity.HasIndex(message => message.CorrelationId);
-        });
-    }
-
-    private static void ConfigureInbox(ModelBuilder modelBuilder)
-    {
-        modelBuilder.Entity<InboxMessage>(entity =>
-        {
-            entity.ToTable("InboxMessages");
-            entity.HasKey(message => message.Id);
-            entity.Property(message => message.MessageId).HasMaxLength(100).IsRequired();
-            entity.Property(message => message.CorrelationId).HasMaxLength(100).IsRequired();
-            entity.Property(message => message.CausationId).HasMaxLength(100).IsRequired();
-            entity.Property(message => message.MessageType).HasMaxLength(500).IsRequired();
-            entity.Property(message => message.ConsumerName).HasMaxLength(200).IsRequired();
-            entity.Property(message => message.Payload).IsRequired();
-            entity.Property(message => message.Status).HasConversion<string>().HasMaxLength(50).IsRequired();
-            entity.Property(message => message.ErrorMessage).HasMaxLength(4000);
-            entity.Property(message => message.RowVersion).IsRowVersion();
-            entity.HasIndex(message => new { message.MessageId, message.ConsumerName }).IsUnique();
-            entity.HasIndex(message => new { message.Status, message.NextRetryAtUtc, message.ReceivedAtUtc });
-            entity.HasIndex(message => message.CorrelationId);
-        });
     }
 }

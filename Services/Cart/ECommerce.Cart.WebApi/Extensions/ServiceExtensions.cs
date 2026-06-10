@@ -1,11 +1,10 @@
 ﻿using ECommerce.Cart.Application.AddCartItem;
-using ECommerce.Cart.Application.UpdateCartItem;
-using ECommerce.Infrastructure.Observability;
 using ECommerce.Cart.Infrastructure;
 using ECommerce.Infrastructure.Security.Core;
 using ECommerce.Shared.Core.Behaviors;
 using ECommerce.Shared.Core.Identity;
 using ECommerce.Shared.Core.Interfaces;
+using ECommerce.Shared.Observability;
 using FluentValidation;
 using MediatR;
 using Microsoft.AspNetCore.Authentication.JwtBearer;

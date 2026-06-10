@@ -1,40 +1,29 @@
-using ECommerce.Shared.Observability;
-using ECommerce.Infrastructure.Security.Core;
-using ECommerce.Ordering.Application.CheckoutCart;
-using ECommerce.Ordering.Infrastructure;
-using ECommerce.Shared.Core.Behaviors;
+﻿using ECommerce.Infrastructure.Security.Core;
 using ECommerce.Shared.Core.Identity;
 using ECommerce.Shared.Core.Interfaces;
-using ECommerce.Shared.Messaging;
-using FluentValidation;
-using MediatR;
+using ECommerce.Shared.Observability;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
 
-namespace ECommerce.Ordering.WebApi.Extensions;
+namespace ECommerce.Inventory.WebApi.Extensions;
 
 public static class ServiceExtensions
 {
     private const string AdminRole = "Admin";
     private const string CustomerRole = "Customer";
 
-    public static IServiceCollection AddOrderingWebApiServices(
+    public static IServiceCollection AddInventoryWebApiServices(
         this IServiceCollection services,
         IConfiguration configuration)
     {
-        services.AddOrderingInfrastructure(configuration);
-        services.AddCartCheckoutClient(configuration);
         services.AddObservability();
 
         services.AddHttpContextAccessor();
         services.AddScoped<ICurrentUserContext, CurrentUserContext>();
-        services.AddSingleton<IMessageNameResolver, DefaultMessageNameResolver>();
 
-        services.AddOrderingMediatRServices();
-        services.AddOrderingValidationServices();
-        services.AddOrderingAuthenticationServices(configuration);
-        services.AddOrderingAuthorizationServices();
+        services.AddInventoryAuthenticationServices(configuration);
+        services.AddInventoryAuthorizationServices();
 
         services.AddControllers();
         services.AddEndpointsApiExplorer();
@@ -44,27 +33,7 @@ public static class ServiceExtensions
         return services;
     }
 
-    private static IServiceCollection AddOrderingMediatRServices(this IServiceCollection services)
-    {
-        services.AddMediatR(configuration =>
-        {
-            configuration.RegisterServicesFromAssemblyContaining<CheckoutCartCommand>();
-        });
-
-        services.AddScoped(typeof(IPipelineBehavior<,>), typeof(ValidationBehavior<,>));
-        services.AddScoped(typeof(IPipelineBehavior<,>), typeof(LoggingBehavior<,>));
-
-        return services;
-    }
-
-    private static IServiceCollection AddOrderingValidationServices(this IServiceCollection services)
-    {
-        services.AddScoped<IValidator<CheckoutCartCommand>, CheckoutCartCommandValidator>();
-
-        return services;
-    }
-
-    private static IServiceCollection AddOrderingAuthenticationServices(
+    private static IServiceCollection AddInventoryAuthenticationServices(
         this IServiceCollection services,
         IConfiguration configuration)
     {
@@ -94,7 +63,7 @@ public static class ServiceExtensions
         return services;
     }
 
-    private static IServiceCollection AddOrderingAuthorizationServices(this IServiceCollection services)
+    private static IServiceCollection AddInventoryAuthorizationServices(this IServiceCollection services)
     {
         services.AddAuthorization(options =>
         {

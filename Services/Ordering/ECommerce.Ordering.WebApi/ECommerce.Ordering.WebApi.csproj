@@ -18,5 +18,6 @@
     <ProjectReference Include="..\..\..\Infras\ECommerce.Infrastructure.Security.Core\ECommerce.Infrastructure.Security.Core.csproj" />
     <ProjectReference Include="..\ECommerce.Ordering.Infrastructure\ECommerce.Ordering.Infrastructure.csproj" />
     <ProjectReference Include="..\..\..\Shared\ECommerce.Shared.Messaging\ECommerce.Shared.Messaging.csproj" />
+    <ProjectReference Include="..\..\..\Shared\ECommerce.Shared.Observability\ECommerce.Shared.Observability.csproj" />
   </ItemGroup>
 </Project>

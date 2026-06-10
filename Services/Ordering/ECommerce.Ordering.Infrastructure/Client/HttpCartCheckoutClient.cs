@@ -1,7 +1,7 @@
 ﻿using ECommerce.Ordering.Domain.Contracts.Cart;
+using ECommerce.Ordering.Infrastructure.Clients.Options;
 using ECommerce.Shared.Core.Exceptions;
-using Microsoft.AspNetCore.Http;
-using System.Net.Http.Headers;
+using Microsoft.Extensions.Options;
 using System.Net.Http.Json;
 using System.Text.Json;
 
@@ -9,26 +9,16 @@ namespace ECommerce.Ordering.Infrastructure.Clients;
 
 public sealed class HttpCartCheckoutClient(
     HttpClient httpClient,
-    IHttpContextAccessor httpContextAccessor)
+    IOptions<CartClientOptions> options)
     : ICartCheckoutClient
 {
     private static readonly JsonSerializerOptions SerializerOptions = new(JsonSerializerDefaults.Web);
 
+    private readonly CartClientOptions _options = options.Value;
+
     public async Task<CheckoutCartSnapshot> GetCheckoutSnapshotAsync(CancellationToken cancellationToken)
     {
-        using var request = new HttpRequestMessage(
-            HttpMethod.Get,
-            "api/cart/checkout-snapshot");
-
-        var authorization = httpContextAccessor.HttpContext?.Request.Headers.Authorization.ToString();
-
-        if (!string.IsNullOrWhiteSpace(authorization)
-            && AuthenticationHeaderValue.TryParse(authorization, out var authorizationHeader))
-        {
-            request.Headers.Authorization = authorizationHeader;
-        }
-
-        using var response = await httpClient.SendAsync(request, cancellationToken);
+        using var response = await httpClient.GetAsync(_options.CheckoutSnapshotPath, cancellationToken);
 
         if (!response.IsSuccessStatusCode)
         {
@@ -45,16 +35,24 @@ public sealed class HttpCartCheckoutClient(
             throw new BusinessRuleException("Cart service returned an empty checkout snapshot.");
         }
 
+        return MapToSnapshot(cart);
+    }
+
+    private static CheckoutCartSnapshot MapToSnapshot(CartSnapshotResponse cart)
+    {
         return new CheckoutCartSnapshot(
             cart.CustomerId,
-            cart.Items
-                .Select(item => new CheckoutCartItemSnapshot(
-                    item.ProductId,
-                    item.ProductName,
-                    item.UnitPrice,
-                    item.Quantity,
-                    item.LineTotal))
-                .ToArray());
+            cart.Items.Select(MapToSnapshotItem).ToArray());
+    }
+
+    private static CheckoutCartItemSnapshot MapToSnapshotItem(CartSnapshotItemResponse item)
+    {
+        return new CheckoutCartItemSnapshot(
+            item.ProductId,
+            item.ProductName,
+            item.UnitPrice,
+            item.Quantity,
+            item.LineTotal);
     }
 
     private sealed record CartSnapshotResponse(

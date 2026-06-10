@@ -9,9 +9,10 @@
     <PackageReference Include="Swashbuckle.AspNetCore" Version="6.6.2" />
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\..\..\Shared\ECommerce.Shared.Observability\ECommerce.Shared.Observability.csproj" />
+    <ProjectReference Include="..\..\Identity\ECommerce.Identity.Domain\ECommerce.Identity.Domain.csproj" />
     <ProjectReference Include="..\ECommerce.Catalog.Application\ECommerce.Catalog.Application.csproj" />
     <ProjectReference Include="..\ECommerce.Catalog.Domain\ECommerce.Catalog.Domain.csproj" />
-    <ProjectReference Include="..\..\Identity\ECommerce.Identity.Domain\ECommerce.Identity.Domain.csproj" />
     <ProjectReference Include="..\..\..\Infras\ECommerce.Infrastructure.Storage\ECommerce.Infrastructure.Storage.csproj" />
     <ProjectReference Include="..\ECommerce.Catalog.Infrastructure\ECommerce.Catalog.Infrastructure.csproj" />
     <ProjectReference Include="..\..\..\Shared\ECommerce.Shared.Core\ECommerce.Shared.Core.csproj" />
