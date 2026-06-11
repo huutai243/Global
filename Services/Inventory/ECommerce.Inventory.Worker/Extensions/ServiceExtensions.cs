@@ -1,4 +1,4 @@
-﻿using ECommerce.Infrastructure.AzureServiceBus;
+﻿using ECommerce.Infrastructure.RabbitMq;
 using ECommerce.Inventory.Application.ReserveInventory;
 using ECommerce.Inventory.Infrastructure;
 using ECommerce.Inventory.Worker.Options;
@@ -13,7 +13,7 @@ public static class ServiceExtensions
         IConfiguration configuration)
     {
         services.AddInventoryInfrastructure(configuration);
-        services.AddAzureServiceBusMessaging(configuration);
+        services.AddRabbitMqMessaging(configuration);
         services.AddObservability();
 
         services.Configure<ReserveInventoryConsumerOptions>(

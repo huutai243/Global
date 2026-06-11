@@ -1,16 +1,17 @@
-﻿using Azure.Messaging.ServiceBus;
-using ECommerce.Inventory.Application.ReserveInventory;
+﻿using ECommerce.Inventory.Application.ReserveInventory;
 using ECommerce.Inventory.Worker.Options;
 using ECommerce.Shared.Contracts;
 using ECommerce.Shared.Messaging;
 using Microsoft.Extensions.Options;
+using RabbitMQ.Client;
+using RabbitMQ.Client.Events;
+using System.Text;
 using System.Text.Json;
 
 namespace ECommerce.Inventory.Worker;
 
 public sealed class ReserveInventoryConsumer(
     IServiceScopeFactory serviceScopeFactory,
-    ServiceBusClient serviceBusClient,
     IOptions<ReserveInventoryConsumerOptions> options,
     ILogger<ReserveInventoryConsumer> logger)
     : BackgroundService
@@ -18,111 +19,173 @@ public sealed class ReserveInventoryConsumer(
     private static readonly JsonSerializerOptions SerializerOptions = new(JsonSerializerDefaults.Web);
 
     private readonly ReserveInventoryConsumerOptions _options = options.Value;
-    private ServiceBusProcessor? _processor;
 
-    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
+    private IConnection? _connection;
+    private RabbitMQ.Client.IModel? _channel;
+
+    protected override Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        _processor = serviceBusClient.CreateProcessor(_options.QueueName, new ServiceBusProcessorOptions
+        var factory = new ConnectionFactory
         {
-            AutoCompleteMessages = false,
-            MaxConcurrentCalls = _options.MaxConcurrentCalls
-        });
+            HostName = _options.HostName,
+            Port = _options.Port,
+            UserName = _options.UserName,
+            Password = _options.Password,
+            DispatchConsumersAsync = true
+        };
 
-        _processor.ProcessMessageAsync += ProcessMessageAsync;
-        _processor.ProcessErrorAsync += ProcessErrorAsync;
+        _connection = factory.CreateConnection();
 
-        await _processor.StartProcessingAsync(stoppingToken);
+        var channel = _connection.CreateModel();
+        _channel = channel;
+
+        channel.ExchangeDeclare(
+            exchange: _options.ExchangeName,
+            type: ExchangeType.Direct,
+            durable: true,
+            autoDelete: false);
+
+        channel.QueueDeclare(
+            queue: _options.QueueName,
+            durable: true,
+            exclusive: false,
+            autoDelete: false);
+
+        channel.QueueBind(
+            queue: _options.QueueName,
+            exchange: _options.ExchangeName,
+            routingKey: _options.RoutingKey);
+
+        channel.BasicQos(
+            prefetchSize: 0,
+            prefetchCount: _options.PrefetchCount,
+            global: false);
+
+        var consumer = new AsyncEventingBasicConsumer(channel);
+        consumer.Received += ProcessMessageAsync;
+
+        channel.BasicConsume(
+            queue: _options.QueueName,
+            autoAck: false,
+            consumer: consumer);
 
         logger.LogInformation(
-            "Reserve inventory consumer started. QueueName: {QueueName}",
-            _options.QueueName);
+            "Reserve inventory RabbitMQ consumer started. QueueName: {QueueName}, ExchangeName: {ExchangeName}, RoutingKey: {RoutingKey}",
+            _options.QueueName,
+            _options.ExchangeName,
+            _options.RoutingKey);
 
-        try
-        {
-            await Task.Delay(Timeout.InfiniteTimeSpan, stoppingToken);
-        }
-        catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
-        {
-        }
+        return Task.CompletedTask;
     }
 
-    public override async Task StopAsync(CancellationToken cancellationToken)
+    private async Task ProcessMessageAsync(object sender, BasicDeliverEventArgs args)
     {
-        if (_processor is not null)
+        var channel = _channel;
+
+        if (channel is null)
         {
-            await _processor.StopProcessingAsync(cancellationToken);
-            await _processor.DisposeAsync();
-        }
-
-        await base.StopAsync(cancellationToken);
-    }
-
-    private async Task ProcessMessageAsync(ProcessMessageEventArgs args)
-    {
-        await using var scope = serviceScopeFactory.CreateAsyncScope();
-
-        var handler = scope.ServiceProvider.GetRequiredService<ReserveInventoryCommandHandler>();
-        var payload = args.Message.Body.ToString();
-
-        var command = JsonSerializer.Deserialize<ReserveInventoryCommand>(
-            payload,
-            SerializerOptions);
-
-        if (command is null)
-        {
-            await args.DeadLetterMessageAsync(
-                args.Message,
-                "InvalidPayload",
-                "ReserveInventoryCommand payload could not be deserialized.",
-                args.CancellationToken);
+            logger.LogError(
+                "RabbitMQ channel is null. DeliveryTag: {DeliveryTag}",
+                args.DeliveryTag);
 
             return;
         }
 
+        var payload = Encoding.UTF8.GetString(args.Body.ToArray());
+
         try
         {
-            await handler.HandleAsync(command, CreateMetadata(args.Message), payload, args.CancellationToken);
-            await args.CompleteMessageAsync(args.Message, args.CancellationToken);
-        }
-        catch (OperationCanceledException) when (args.CancellationToken.IsCancellationRequested)
-        {
-            throw;
+            var command = JsonSerializer.Deserialize<ReserveInventoryCommand>(
+                payload,
+                SerializerOptions);
+
+            if (command is null)
+            {
+                logger.LogWarning(
+                    "Reserve inventory payload could not be deserialized. DeliveryTag: {DeliveryTag}",
+                    args.DeliveryTag);
+
+                channel.BasicReject(
+                    deliveryTag: args.DeliveryTag,
+                    requeue: false);
+
+                return;
+            }
+
+            await using var scope = serviceScopeFactory.CreateAsyncScope();
+
+            var handler = scope.ServiceProvider.GetRequiredService<ReserveInventoryCommandHandler>();
+
+            await handler.HandleAsync(
+                command,
+                CreateMetadata(args.BasicProperties),
+                payload,
+                CancellationToken.None);
+
+            channel.BasicAck(
+                deliveryTag: args.DeliveryTag,
+                multiple: false);
         }
         catch (Exception exception)
         {
             logger.LogError(
                 exception,
-                "Reserve inventory consumer failed. MessageId: {MessageId}, CorrelationId: {CorrelationId}",
-                args.Message.MessageId,
-                args.Message.CorrelationId);
+                "Reserve inventory RabbitMQ consumer failed. DeliveryTag: {DeliveryTag}, MessageId: {MessageId}, CorrelationId: {CorrelationId}",
+                args.DeliveryTag,
+                args.BasicProperties.MessageId,
+                args.BasicProperties.CorrelationId);
 
-            await args.AbandonMessageAsync(
-                args.Message,
-                cancellationToken: args.CancellationToken);
+            channel.BasicNack(
+                deliveryTag: args.DeliveryTag,
+                multiple: false,
+                requeue: true);
         }
     }
 
-    private static MessageMetadata CreateMetadata(ServiceBusReceivedMessage message)
+    private static MessageMetadata CreateMetadata(IBasicProperties properties)
     {
-        var causationId = message.ApplicationProperties.TryGetValue("CausationId", out var value)
-            ? value?.ToString() ?? message.MessageId
-            : message.MessageId;
+        var messageId = string.IsNullOrWhiteSpace(properties.MessageId)
+            ? Guid.NewGuid().ToString("N")
+            : properties.MessageId;
+
+        var correlationId = string.IsNullOrWhiteSpace(properties.CorrelationId)
+            ? messageId
+            : properties.CorrelationId;
+
+        var causationId = GetHeaderValue(properties, "CausationId") ?? messageId;
 
         return new MessageMetadata(
-            message.MessageId,
-            message.CorrelationId ?? message.MessageId,
+            messageId,
+            correlationId,
             causationId,
-            message.EnqueuedTime.UtcDateTime);
+            DateTime.UtcNow);
     }
 
-    private Task ProcessErrorAsync(ProcessErrorEventArgs args)
+    private static string? GetHeaderValue(IBasicProperties properties, string key)
     {
-        logger.LogError(
-            args.Exception,
-            "Azure Service Bus consumer error. EntityPath: {EntityPath}, ErrorSource: {ErrorSource}",
-            args.EntityPath,
-            args.ErrorSource);
+        if (properties.Headers is null ||
+            !properties.Headers.TryGetValue(key, out var value) ||
+            value is null)
+        {
+            return null;
+        }
 
-        return Task.CompletedTask;
+        return value switch
+        {
+            byte[] bytes => Encoding.UTF8.GetString(bytes),
+            string text => text,
+            _ => value.ToString()
+        };
+    }
+
+    public override Task StopAsync(CancellationToken cancellationToken)
+    {
+        _channel?.Close();
+        _connection?.Close();
+
+        _channel?.Dispose();
+        _connection?.Dispose();
+
+        return base.StopAsync(cancellationToken);
     }
 }
