@@ -1,4 +1,4 @@
-﻿using ECommerce.Infrastructure.AzureServiceBus;
+﻿using ECommerce.Infrastructure.RabbitMq;
 using ECommerce.Shared.Observability;
 using ECommerce.Ordering.Infrastructure;
 using ECommerce.Ordering.Worker.Options;
@@ -12,7 +12,7 @@ public static class ServiceExtensions
         IConfiguration configuration)
     {
         services.AddOrderingInfrastructure(configuration);
-        services.AddAzureServiceBusMessaging(configuration);
+        services.AddRabbitMqMessaging(configuration);
         services.AddObservability();
 
         services.Configure<OutboxOptions>(
