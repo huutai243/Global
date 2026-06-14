@@ -2,13 +2,11 @@ namespace ECommerce.Infrastructure.RabbitMq;
 
 public sealed class RabbitMqSettings
 {
-    public string HostName { get; set; } = "localhost";
+    public const string SectionName = "RabbitMq";
 
-    public int Port { get; set; } = 5672;
-
-    public string UserName { get; set; } = "guest";
-
-    public string Password { get; set; } = "guest";
-
-    public string ExchangeName { get; set; } = "ecommerce.events";
+    public string HostName { get; init; } = "localhost";
+    public int Port { get; init; } = 5672;
+    public string UserName { get; init; } = "guest";
+    public string Password { get; init; } = "guest";
+    public string ExchangeName { get; init; } = "ecommerce.events";
 }

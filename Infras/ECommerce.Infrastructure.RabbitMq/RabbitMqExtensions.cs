@@ -1,4 +1,5 @@
 using ECommerce.Shared.Core.Interfaces;
+using ECommerce.Shared.Messaging;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -8,8 +9,11 @@ public static class RabbitMqExtensions
 {
     public static IServiceCollection AddRabbitMqMessaging(this IServiceCollection services, IConfiguration configuration)
     {
-        services.Configure<RabbitMqSettings>(configuration.GetSection(nameof(RabbitMqSettings)));
+        services.Configure<RabbitMqSettings>(configuration.GetSection(RabbitMqSettings.SectionName));
         services.AddScoped<IRabbitMqPublisher, RabbitMqPublisher>();
+        services.AddScoped<IMessagePublisher, RabbitMqPublisher>();
+        services.AddSingleton<IMessageNameResolver, DefaultMessageNameResolver>();
+
         return services;
     }
 }

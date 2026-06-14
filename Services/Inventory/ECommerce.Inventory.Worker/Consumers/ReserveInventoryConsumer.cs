@@ -1,36 +1,42 @@
-﻿using ECommerce.Inventory.Application.ReserveInventory;
+﻿using System.Text;
+using System.Text.Json;
+using ECommerce.Infrastructure.RabbitMq;
+using ECommerce.Inventory.Application.ReserveInventory;
 using ECommerce.Inventory.Worker.Options;
 using ECommerce.Shared.Contracts;
 using ECommerce.Shared.Messaging;
 using Microsoft.Extensions.Options;
 using RabbitMQ.Client;
 using RabbitMQ.Client.Events;
-using System.Text;
-using System.Text.Json;
 
 namespace ECommerce.Inventory.Worker;
 
 public sealed class ReserveInventoryConsumer(
     IServiceScopeFactory serviceScopeFactory,
+    IOptions<RabbitMqSettings> rabbitMqOptions,
     IOptions<ReserveInventoryConsumerOptions> options,
     ILogger<ReserveInventoryConsumer> logger)
     : BackgroundService
 {
     private static readonly JsonSerializerOptions SerializerOptions = new(JsonSerializerDefaults.Web);
 
+    private readonly RabbitMqSettings _rabbitMq = rabbitMqOptions.Value;
     private readonly ReserveInventoryConsumerOptions _options = options.Value;
 
     private IConnection? _connection;
-    private RabbitMQ.Client.IModel? _channel;
+    private IModel? _channel;
+    private CancellationToken _stoppingToken;
 
     protected override Task ExecuteAsync(CancellationToken stoppingToken)
     {
+        _stoppingToken = stoppingToken;
+
         var factory = new ConnectionFactory
         {
-            HostName = _options.HostName,
-            Port = _options.Port,
-            UserName = _options.UserName,
-            Password = _options.Password,
+            HostName = _rabbitMq.HostName,
+            Port = _rabbitMq.Port,
+            UserName = _rabbitMq.UserName,
+            Password = _rabbitMq.Password,
             DispatchConsumersAsync = true
         };
 
@@ -40,7 +46,7 @@ public sealed class ReserveInventoryConsumer(
         _channel = channel;
 
         channel.ExchangeDeclare(
-            exchange: _options.ExchangeName,
+            exchange: _rabbitMq.ExchangeName,
             type: ExchangeType.Direct,
             durable: true,
             autoDelete: false);
@@ -53,7 +59,7 @@ public sealed class ReserveInventoryConsumer(
 
         channel.QueueBind(
             queue: _options.QueueName,
-            exchange: _options.ExchangeName,
+            exchange: _rabbitMq.ExchangeName,
             routingKey: _options.RoutingKey);
 
         channel.BasicQos(
@@ -72,7 +78,7 @@ public sealed class ReserveInventoryConsumer(
         logger.LogInformation(
             "Reserve inventory RabbitMQ consumer started. QueueName: {QueueName}, ExchangeName: {ExchangeName}, RoutingKey: {RoutingKey}",
             _options.QueueName,
-            _options.ExchangeName,
+            _rabbitMq.ExchangeName,
             _options.RoutingKey);
 
         return Task.CompletedTask;
@@ -120,11 +126,18 @@ public sealed class ReserveInventoryConsumer(
                 command,
                 CreateMetadata(args.BasicProperties),
                 payload,
-                CancellationToken.None);
+                _stoppingToken);
 
             channel.BasicAck(
                 deliveryTag: args.DeliveryTag,
                 multiple: false);
+        }
+        catch (OperationCanceledException) when (_stoppingToken.IsCancellationRequested)
+        {
+            channel.BasicNack(
+                deliveryTag: args.DeliveryTag,
+                multiple: false,
+                requeue: true);
         }
         catch (Exception exception)
         {
@@ -138,7 +151,7 @@ public sealed class ReserveInventoryConsumer(
             channel.BasicNack(
                 deliveryTag: args.DeliveryTag,
                 multiple: false,
-                requeue: true);
+                requeue: false);
         }
     }
 

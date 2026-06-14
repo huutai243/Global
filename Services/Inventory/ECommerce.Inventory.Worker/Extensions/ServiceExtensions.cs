@@ -3,6 +3,8 @@ using ECommerce.Inventory.Application.ReserveInventory;
 using ECommerce.Inventory.Infrastructure;
 using ECommerce.Inventory.Worker.Options;
 using ECommerce.Shared.Observability;
+using ECommerce.Shared.Outbox;
+using FluentValidation;
 
 namespace ECommerce.Inventory.Worker.Extensions;
 
@@ -12,15 +14,46 @@ public static class ServiceExtensions
         this IServiceCollection services,
         IConfiguration configuration)
     {
+        services
+            .AddInfrastructure(configuration)
+            .AddApplicationServices()
+            .AddWorkerOptions(configuration)
+            .AddBackgroundWorkers();
+
+        return services;
+    }
+
+    private static IServiceCollection AddInfrastructure(
+        this IServiceCollection services,
+        IConfiguration configuration)
+    {
         services.AddInventoryInfrastructure(configuration);
         services.AddRabbitMqMessaging(configuration);
         services.AddObservability();
 
-        services.Configure<ReserveInventoryConsumerOptions>(
-            configuration.GetSection(ReserveInventoryConsumerOptions.SectionName));
+        return services;
+    }
 
+    private static IServiceCollection AddApplicationServices(this IServiceCollection services)
+    {
+        services.AddValidatorsFromAssemblyContaining<ReserveInventoryCommandValidator>();
         services.AddScoped<ReserveInventoryCommandHandler>();
+        services.AddScoped<OutboxMessageFactory>();
 
+        return services;
+    }
+
+    private static IServiceCollection AddWorkerOptions(
+        this IServiceCollection services,
+        IConfiguration configuration)
+    {
+        services.Configure<ReserveInventoryConsumerOptions>(configuration.GetSection(ReserveInventoryConsumerOptions.SectionName));
+
+        return services;
+    }
+
+    private static IServiceCollection AddBackgroundWorkers(this IServiceCollection services)
+    {
         services.AddHostedService<ReserveInventoryConsumer>();
 
         return services;

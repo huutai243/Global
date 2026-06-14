@@ -11,5 +11,6 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\Shared\ECommerce.Shared.Core\ECommerce.Shared.Core.csproj" />
+    <ProjectReference Include="..\..\Shared\ECommerce.Shared.Messaging\ECommerce.Shared.Messaging.csproj" />
   </ItemGroup>
 </Project>

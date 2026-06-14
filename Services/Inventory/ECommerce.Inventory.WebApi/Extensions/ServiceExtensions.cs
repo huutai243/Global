@@ -1,10 +1,10 @@
-﻿using ECommerce.Infrastructure.Security.Core;
+﻿using System.Text;
+using ECommerce.Infrastructure.Security.Core;
 using ECommerce.Shared.Core.Identity;
 using ECommerce.Shared.Core.Interfaces;
 using ECommerce.Shared.Observability;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
-using System.Text;
 
 namespace ECommerce.Inventory.WebApi.Extensions;
 
@@ -17,53 +17,51 @@ public static class ServiceExtensions
         this IServiceCollection services,
         IConfiguration configuration)
     {
-        services.AddObservability();
-
-        services.AddHttpContextAccessor();
-        services.AddScoped<ICurrentUserContext, CurrentUserContext>();
-
-        services.AddInventoryAuthenticationServices(configuration);
-        services.AddInventoryAuthorizationServices();
-
-        services.AddControllers();
-        services.AddEndpointsApiExplorer();
-        services.AddSwaggerGen();
-        services.AddHealthChecks();
+        services
+            .AddCrossCuttingServices()
+            .AddCurrentUserServices()
+            .AddInventoryAuthentication(configuration)
+            .AddInventoryAuthorization()
+            .AddPresentationServices();
 
         return services;
     }
 
-    private static IServiceCollection AddInventoryAuthenticationServices(
+    private static IServiceCollection AddCrossCuttingServices(this IServiceCollection services)
+    {
+        services.AddObservability();
+
+        return services;
+    }
+
+    private static IServiceCollection AddCurrentUserServices(this IServiceCollection services)
+    {
+        services.AddHttpContextAccessor();
+        services.AddScoped<ICurrentUserContext, CurrentUserContext>();
+
+        return services;
+    }
+
+    private static IServiceCollection AddInventoryAuthentication(
         this IServiceCollection services,
         IConfiguration configuration)
     {
-        var jwtSettings = configuration
-            .GetSection(nameof(JwtSettings))
-            .Get<JwtSettings>() ?? new JwtSettings();
+        var jwtSettingsSection = configuration.GetSection(nameof(JwtSettings));
+        var jwtSettings = jwtSettingsSection.Get<JwtSettings>() ?? new JwtSettings();
 
-        services.Configure<JwtSettings>(configuration.GetSection(nameof(JwtSettings)));
+        services.Configure<JwtSettings>(jwtSettingsSection);
 
         services
             .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             .AddJwtBearer(options =>
             {
-                options.TokenValidationParameters = new TokenValidationParameters
-                {
-                    ValidateIssuer = true,
-                    ValidateAudience = true,
-                    ValidateLifetime = true,
-                    ValidateIssuerSigningKey = true,
-                    ValidIssuer = jwtSettings.Issuer,
-                    ValidAudience = jwtSettings.Audience,
-                    IssuerSigningKey = new SymmetricSecurityKey(
-                        Encoding.UTF8.GetBytes(jwtSettings.SecretKey))
-                };
+                options.TokenValidationParameters = CreateTokenValidationParameters(jwtSettings);
             });
 
         return services;
     }
 
-    private static IServiceCollection AddInventoryAuthorizationServices(this IServiceCollection services)
+    private static IServiceCollection AddInventoryAuthorization(this IServiceCollection services)
     {
         services.AddAuthorization(options =>
         {
@@ -72,5 +70,35 @@ public static class ServiceExtensions
         });
 
         return services;
+    }
+
+    private static IServiceCollection AddPresentationServices(this IServiceCollection services)
+    {
+        services.AddControllers();
+        services.AddEndpointsApiExplorer();
+        services.AddSwaggerGen();
+        services.AddHealthChecks();
+
+        return services;
+    }
+
+    private static TokenValidationParameters CreateTokenValidationParameters(JwtSettings jwtSettings)
+    {
+        return new TokenValidationParameters
+        {
+            ValidateIssuer = true,
+            ValidateAudience = true,
+            ValidateLifetime = true,
+            ValidateIssuerSigningKey = true,
+            ValidIssuer = jwtSettings.Issuer,
+            ValidAudience = jwtSettings.Audience,
+            IssuerSigningKey = CreateIssuerSigningKey(jwtSettings)
+        };
+    }
+
+    private static SymmetricSecurityKey CreateIssuerSigningKey(JwtSettings jwtSettings)
+    {
+        return new SymmetricSecurityKey(
+            Encoding.UTF8.GetBytes(jwtSettings.SecretKey));
     }
 }

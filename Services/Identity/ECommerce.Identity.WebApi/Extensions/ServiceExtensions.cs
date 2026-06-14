@@ -1,50 +1,80 @@
-﻿
+﻿using System.Text;
 using ECommerce.Identity.Application.ForgotPassword;
 using ECommerce.Identity.Application.Login;
 using ECommerce.Identity.Application.Register;
 using ECommerce.Identity.Application.ResetPassword;
 using ECommerce.Identity.Domain.Models;
-using ECommerce.Shared.Observability;
 using ECommerce.Identity.Infrastructure;
 using ECommerce.Infrastructure.Security;
 using ECommerce.Infrastructure.Security.Core;
 using ECommerce.Shared.Core.Behaviors;
 using ECommerce.Shared.Core.Identity;
 using ECommerce.Shared.Core.Interfaces;
+using ECommerce.Shared.Observability;
 using FluentValidation;
 using MediatR;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
-using System.Text;
 
 namespace ECommerce.Identity.WebApi.Infras.Extensions;
 
 public static class ServiceExtensions
 {
+    private const string FrontendCorsPolicy = "Frontend";
+    private const string FrontendBaseUrlKey = "Frontend:BaseUrl";
+    private const string SmtpSectionName = "Smtp";
+
     public static IServiceCollection AddIdentityApplicationServices(
         this IServiceCollection services,
         IConfiguration configuration)
     {
-        services.AddIdentityInfrastructure(configuration);
-        services.AddObservability();
-
-        services.AddScoped<ICurrentUserContext, CurrentUserContext>();
-
-        services.AddIdentityMediatRServices();
-        services.AddIdentityValidationServices();
-        services.AddIdentityAuthenticationServices(configuration);
-        services.AddIdentityAuthorizationServices();
-        services.AddIdentityEmailServices(configuration);
-        services.AddIdentityPasswordResetServices();
-
-        services.AddEndpointsApiExplorer();
-        services.AddSwaggerGen();
-        services.AddHealthChecks();
+        services
+            .AddInfrastructure(configuration)
+            .AddCrossCuttingServices()
+            .AddCurrentUserServices()
+            .AddApplicationServices()
+            .AddIdentityAuthentication(configuration)
+            .AddIdentityAuthorization()
+            .AddEmailServices(configuration)
+            .AddPasswordResetServices()
+            .AddCorsServices(configuration)
+            .AddPresentationServices();
 
         return services;
     }
 
-    private static IServiceCollection AddIdentityMediatRServices(this IServiceCollection services)
+    private static IServiceCollection AddInfrastructure(
+        this IServiceCollection services,
+        IConfiguration configuration)
+    {
+        services.AddIdentityInfrastructure(configuration);
+
+        return services;
+    }
+
+    private static IServiceCollection AddCrossCuttingServices(this IServiceCollection services)
+    {
+        services.AddObservability();
+
+        return services;
+    }
+
+    private static IServiceCollection AddCurrentUserServices(this IServiceCollection services)
+    {
+        services.AddScoped<ICurrentUserContext, CurrentUserContext>();
+
+        return services;
+    }
+
+    private static IServiceCollection AddApplicationServices(this IServiceCollection services)
+    {
+        services.AddIdentityMediatR();
+        services.AddIdentityValidation();
+
+        return services;
+    }
+
+    private static IServiceCollection AddIdentityMediatR(this IServiceCollection services)
     {
         services.AddMediatR(configuration =>
         {
@@ -57,7 +87,7 @@ public static class ServiceExtensions
         return services;
     }
 
-    private static IServiceCollection AddIdentityValidationServices(this IServiceCollection services)
+    private static IServiceCollection AddIdentityValidation(this IServiceCollection services)
     {
         services.AddScoped<IValidator<RegisterCustomerCommand>, RegisterCustomerCommandValidator>();
         services.AddScoped<IValidator<LoginCommand>, LoginCommandValidator>();
@@ -67,38 +97,27 @@ public static class ServiceExtensions
         return services;
     }
 
-    private static IServiceCollection AddIdentityAuthenticationServices(
+    private static IServiceCollection AddIdentityAuthentication(
         this IServiceCollection services,
         IConfiguration configuration)
     {
-        var jwtSettings = configuration
-            .GetSection(nameof(JwtSettings))
-            .Get<JwtSettings>() ?? new JwtSettings();
+        var jwtSettingsSection = configuration.GetSection(nameof(JwtSettings));
+        var jwtSettings = jwtSettingsSection.Get<JwtSettings>() ?? new JwtSettings();
 
-        services.Configure<JwtSettings>(configuration.GetSection(nameof(JwtSettings)));
+        services.Configure<JwtSettings>(jwtSettingsSection);
         services.AddScoped<IJwtTokenService, JwtTokenService>();
 
         services
             .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             .AddJwtBearer(options =>
             {
-                options.TokenValidationParameters = new TokenValidationParameters
-                {
-                    ValidateIssuer = true,
-                    ValidateAudience = true,
-                    ValidateLifetime = true,
-                    ValidateIssuerSigningKey = true,
-                    ValidIssuer = jwtSettings.Issuer,
-                    ValidAudience = jwtSettings.Audience,
-                    IssuerSigningKey = new SymmetricSecurityKey(
-                        Encoding.UTF8.GetBytes(jwtSettings.SecretKey))
-                };
+                options.TokenValidationParameters = CreateTokenValidationParameters(jwtSettings);
             });
 
         return services;
     }
 
-    private static IServiceCollection AddIdentityAuthorizationServices(this IServiceCollection services)
+    private static IServiceCollection AddIdentityAuthorization(this IServiceCollection services)
     {
         services.AddAuthorization(options =>
         {
@@ -109,20 +128,80 @@ public static class ServiceExtensions
         return services;
     }
 
-    private static IServiceCollection AddIdentityEmailServices(
+    private static IServiceCollection AddEmailServices(
         this IServiceCollection services,
         IConfiguration configuration)
     {
-        services.Configure<SmtpSettings>(configuration.GetSection("Smtp"));
+        services.Configure<SmtpSettings>(configuration.GetSection(SmtpSectionName));
         services.AddScoped<IEmailSender, SmtpEmailSender>();
 
         return services;
     }
 
-    private static IServiceCollection AddIdentityPasswordResetServices(this IServiceCollection services)
+    private static IServiceCollection AddPasswordResetServices(this IServiceCollection services)
     {
         services.AddScoped<IPasswordResetTokenService, PasswordResetTokenService>();
 
         return services;
+    }
+
+    private static IServiceCollection AddCorsServices(
+        this IServiceCollection services,
+        IConfiguration configuration)
+    {
+        var frontendBaseUrl = configuration[FrontendBaseUrlKey];
+
+        EnsureValidFrontendBaseUrl(frontendBaseUrl);
+
+        services.AddCors(options =>
+        {
+            options.AddPolicy(FrontendCorsPolicy, policy =>
+            {
+                policy
+                    .WithOrigins(frontendBaseUrl!)
+                    .AllowAnyHeader()
+                    .AllowAnyMethod();
+            });
+        });
+
+        return services;
+    }
+
+    private static IServiceCollection AddPresentationServices(this IServiceCollection services)
+    {
+        services.AddControllers();
+        services.AddEndpointsApiExplorer();
+        services.AddSwaggerGen();
+        services.AddHealthChecks();
+
+        return services;
+    }
+
+    private static void EnsureValidFrontendBaseUrl(string? frontendBaseUrl)
+    {
+        if (string.IsNullOrWhiteSpace(frontendBaseUrl))
+        {
+            throw new InvalidOperationException($"{FrontendBaseUrlKey} is missing.");
+        }
+    }
+
+    private static TokenValidationParameters CreateTokenValidationParameters(JwtSettings jwtSettings)
+    {
+        return new TokenValidationParameters
+        {
+            ValidateIssuer = true,
+            ValidateAudience = true,
+            ValidateLifetime = true,
+            ValidateIssuerSigningKey = true,
+            ValidIssuer = jwtSettings.Issuer,
+            ValidAudience = jwtSettings.Audience,
+            IssuerSigningKey = CreateIssuerSigningKey(jwtSettings)
+        };
+    }
+
+    private static SymmetricSecurityKey CreateIssuerSigningKey(JwtSettings jwtSettings)
+    {
+        return new SymmetricSecurityKey(
+            Encoding.UTF8.GetBytes(jwtSettings.SecretKey));
     }
 }
