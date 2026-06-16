@@ -1,15 +1,16 @@
-using ECommerce.Catalog.Domain.Responses;
 using ECommerce.Catalog.Application.CreateProduct;
 using ECommerce.Catalog.Application.DeleteProduct;
 using ECommerce.Catalog.Application.GetProductById;
 using ECommerce.Catalog.Application.GetPublicProducts;
+using ECommerce.Catalog.Application.SearchProducts;
 using ECommerce.Catalog.Application.UpdateProduct;
+using ECommerce.Catalog.Domain.Responses;
 using ECommerce.Catalog.WebApi.Controllers.Factories;
 using ECommerce.Catalog.WebApi.Controllers.Request;
+using ECommerce.Identity.Domain.Models;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using ECommerce.Identity.Domain.Models;
 
 namespace ECommerce.Catalog.WebApi.Controllers;
 
@@ -116,5 +117,35 @@ public sealed class ProductsController(ISender sender) : ControllerBase
         await sender.Send(new DeleteProductCommand(productId), cancellationToken);
 
         return NoContent();
+    }
+
+    [HttpGet("search")]
+    [AllowAnonymous]
+    [ProducesResponseType(typeof(SearchProductsResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<ActionResult<SearchProductsResponse>> SearchProductsAsync(
+    [FromQuery] string? keyword,
+    [FromQuery] Guid? categoryId,
+    [FromQuery] decimal? minPrice,
+    [FromQuery] decimal? maxPrice,
+    [FromQuery] ProductSearchSort sort = ProductSearchSort.Relevance,
+    [FromQuery] int pageNumber = 1,
+    [FromQuery] int pageSize = 20,
+    CancellationToken cancellationToken = default)
+    {
+        var response = await sender.Send(
+            new SearchProductsQuery
+            {
+                Keyword = keyword,
+                CategoryId = categoryId,
+                MinPrice = minPrice,
+                MaxPrice = maxPrice,
+                Sort = sort,
+                PageNumber = pageNumber,
+                PageSize = pageSize
+            },
+            cancellationToken);
+
+        return Ok(response);
     }
 }
