@@ -3,16 +3,26 @@ setlocal EnableExtensions
 
 set "SOLUTION=ECommerce.sln"
 
+set "EF_VERSION=8.0.6"
+
 set "API_GATEWAY_PROJECT=ApiGateway\ECommerce.ApiGateway\ECommerce.ApiGateway.csproj"
 
-set "IDENTITY_PROJECT=Services\Identity\ECommerce.Identity.WebApi\ECommerce.Identity.WebApi.csproj"
-set "CATALOG_PROJECT=Services\Catalog\ECommerce.Catalog.WebApi\ECommerce.Catalog.WebApi.csproj"
-set "CART_PROJECT=Services\Cart\ECommerce.Cart.WebApi\ECommerce.Cart.WebApi.csproj"
+set "IDENTITY_WEB_PROJECT=Services\Identity\ECommerce.Identity.WebApi\ECommerce.Identity.WebApi.csproj"
+set "CATALOG_WEB_PROJECT=Services\Catalog\ECommerce.Catalog.WebApi\ECommerce.Catalog.WebApi.csproj"
+set "CART_WEB_PROJECT=Services\Cart\ECommerce.Cart.WebApi\ECommerce.Cart.WebApi.csproj"
+set "ORDERING_WEB_PROJECT=Services\Ordering\ECommerce.Ordering.WebApi\ECommerce.Ordering.WebApi.csproj"
+set "INVENTORY_WEB_PROJECT=Services\Inventory\ECommerce.Inventory.WebApi\ECommerce.Inventory.WebApi.csproj"
+set "PAYMENT_WEB_PROJECT=Services\Payment\ECommerce.Payment.WebApi\ECommerce.Payment.WebApi.csproj"
 
-set "MIGRATION_PROJECT=Infras\ECommerce.Infrastructure.Persistence\ECommerce.Infrastructure.Persistence.csproj"
-set "MIGRATION_STARTUP_PROJECT=Services\Identity\ECommerce.Identity.WebApi\ECommerce.Identity.WebApi.csproj"
+set "ORDERING_WORKER_PROJECT=Services\Ordering\ECommerce.Ordering.Worker\ECommerce.Ordering.Worker.csproj"
+set "INVENTORY_WORKER_PROJECT=Services\Inventory\ECommerce.Inventory.Worker\ECommerce.Inventory.Worker.csproj"
 
-set "EF_VERSION=8.0.6"
+set "IDENTITY_MIGRATION_PROJECT=Services\Identity\ECommerce.Identity.Infrastructure\ECommerce.Identity.Infrastructure.csproj"
+set "CATALOG_MIGRATION_PROJECT=Services\Catalog\ECommerce.Catalog.Infrastructure\ECommerce.Catalog.Infrastructure.csproj"
+set "CART_MIGRATION_PROJECT=Services\Cart\ECommerce.Cart.Infrastructure\ECommerce.Cart.Infrastructure.csproj"
+set "ORDERING_MIGRATION_PROJECT=Services\Ordering\ECommerce.Ordering.Infrastructure\ECommerce.Ordering.Infrastructure.csproj"
+set "INVENTORY_MIGRATION_PROJECT=Services\Inventory\ECommerce.Inventory.Infrastructure\ECommerce.Inventory.Infrastructure.csproj"
+set "PAYMENT_MIGRATION_PROJECT=Services\Payment\ECommerce.Payment.Infrastructure\ECommerce.Payment.Infrastructure.csproj"
 
 if not exist "Logs" mkdir "Logs"
 
@@ -22,6 +32,40 @@ set "LOG_FILE=Logs\setup-dev-%TIMESTAMP%.log"
 call :log "Starting development setup."
 call :log "Log file: %LOG_FILE%"
 
+call :ensure_dotnet
+call :ensure_dotnet_ef
+
+call :run dotnet restore "%SOLUTION%"
+if errorlevel 1 call :fail "dotnet restore failed. Please check the log for details."
+
+call :run dotnet build "%SOLUTION%"
+if errorlevel 1 call :fail "dotnet build failed. Please check the log for details."
+
+call :update_database "Identity" "%IDENTITY_MIGRATION_PROJECT%" "%IDENTITY_WEB_PROJECT%" "IdentityDbContext"
+call :update_database "Catalog" "%CATALOG_MIGRATION_PROJECT%" "%CATALOG_WEB_PROJECT%" "CatalogDbContext"
+call :update_database "Cart" "%CART_MIGRATION_PROJECT%" "%CART_WEB_PROJECT%" "CartDbContext"
+call :update_database "Ordering" "%ORDERING_MIGRATION_PROJECT%" "%ORDERING_WEB_PROJECT%" "OrderingDbContext"
+call :update_database "Inventory" "%INVENTORY_MIGRATION_PROJECT%" "%INVENTORY_WEB_PROJECT%" "InventoryDbContext"
+call :update_database "Payment" "%PAYMENT_MIGRATION_PROJECT%" "%PAYMENT_WEB_PROJECT%" "PaymentDbContext"
+
+call :log "Setup completed successfully. Starting microservice development environment."
+
+start "Identity WebApi" cmd /k dotnet run --project "%IDENTITY_WEB_PROJECT%"
+start "Catalog WebApi" cmd /k dotnet run --project "%CATALOG_WEB_PROJECT%"
+start "Cart WebApi" cmd /k dotnet run --project "%CART_WEB_PROJECT%"
+start "Ordering WebApi" cmd /k dotnet run --project "%ORDERING_WEB_PROJECT%"
+start "Ordering Worker" cmd /k dotnet run --project "%ORDERING_WORKER_PROJECT%"
+start "Inventory WebApi" cmd /k dotnet run --project "%INVENTORY_WEB_PROJECT%"
+start "Inventory Worker" cmd /k dotnet run --project "%INVENTORY_WORKER_PROJECT%"
+start "Payment WebApi" cmd /k dotnet run --project "%PAYMENT_WEB_PROJECT%"
+start "ApiGateway" cmd /k dotnet run --project "%API_GATEWAY_PROJECT%"
+
+call :log "Started services."
+call :log "Frontend should call: http://localhost:5000/api"
+
+exit /b 0
+
+:ensure_dotnet
 call :run dotnet --version
 if errorlevel 1 (
     call :log "dotnet SDK was not found. Trying to install .NET 8 SDK with winget."
@@ -42,7 +86,11 @@ if errorlevel 1 (
     )
 )
 
+exit /b 0
+
+:ensure_dotnet_ef
 call :log "Installing or updating dotnet-ef %EF_VERSION%."
+
 call :run dotnet tool update --global dotnet-ef --version %EF_VERSION%
 if errorlevel 1 (
     call :log "dotnet-ef update failed. Trying install instead."
@@ -53,30 +101,28 @@ if errorlevel 1 (
     )
 )
 
-call :run dotnet restore "%SOLUTION%"
-if errorlevel 1 call :fail "dotnet restore failed. Please check the log for details."
+exit /b 0
 
-call :run dotnet build "%SOLUTION%"
-if errorlevel 1 call :fail "dotnet build failed. Please check the log for details."
+:update_database
+set "SERVICE_NAME=%~1"
+set "MIGRATION_PROJECT_PATH=%~2"
+set "STARTUP_PROJECT_PATH=%~3"
+set "DB_CONTEXT=%~4"
 
-call :run dotnet ef database update --project "%MIGRATION_PROJECT%" --startup-project "%MIGRATION_STARTUP_PROJECT%"
-if errorlevel 1 (
-    call :fail "Database update failed. Please check SQL Server service, ConnectionStrings:ECommerceConnection, and database permissions."
+call :log "Updating %SERVICE_NAME% database."
+
+if not exist "%MIGRATION_PROJECT_PATH%" (
+    call :fail "%SERVICE_NAME% migration project was not found: %MIGRATION_PROJECT_PATH%"
 )
 
-call :log "Setup completed successfully. Starting microservice development environment."
+if not exist "%STARTUP_PROJECT_PATH%" (
+    call :fail "%SERVICE_NAME% startup project was not found: %STARTUP_PROJECT_PATH%"
+)
 
-start "Identity WebApi" cmd /k dotnet run --project "%IDENTITY_PROJECT%"
-start "Catalog WebApi" cmd /k dotnet run --project "%CATALOG_PROJECT%"
-start "Cart WebApi" cmd /k dotnet run --project "%CART_PROJECT%"
-start "ApiGateway" cmd /k dotnet run --project "%API_GATEWAY_PROJECT%"
-
-call :log "Started services:"
-call :log "Identity WebApi: http://localhost:5212"
-call :log "Catalog WebApi: http://localhost:5018"
-call :log "Cart WebApi: http://localhost:5137"
-call :log "ApiGateway: http://localhost:5000"
-call :log "Frontend should call: http://localhost:5000/api"
+call :run dotnet ef database update --context "%DB_CONTEXT%" --project "%MIGRATION_PROJECT_PATH%" --startup-project "%STARTUP_PROJECT_PATH%"
+if errorlevel 1 (
+    call :fail "%SERVICE_NAME% database update failed. Check connection string, SQL Server service, migrations, and project references."
+)
 
 exit /b 0
 

@@ -1,29 +1,29 @@
 ﻿using System.Text;
 using ECommerce.Infrastructure.Security.Core;
-using ECommerce.Inventory.Infrastructure;
+using ECommerce.Payment.Infrastructure;
 using ECommerce.Shared.Core.Identity;
 using ECommerce.Shared.Core.Interfaces;
 using ECommerce.Shared.Observability;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 
-namespace ECommerce.Inventory.WebApi.Extensions;
+namespace ECommerce.Payment.WebApi.Extensions;
 
 public static class ServiceExtensions
 {
     private const string AdminRole = "Admin";
     private const string CustomerRole = "Customer";
 
-    public static IServiceCollection AddInventoryWebApiServices(
+    public static IServiceCollection AddPaymentWebApiServices(
         this IServiceCollection services,
         IConfiguration configuration)
     {
         services
             .AddCrossCuttingServices()
             .AddCurrentUserServices()
-            .AddInventoryInfrastructure(configuration)
-            .AddInventoryAuthentication(configuration)
-            .AddInventoryAuthorization()
+            .AddPaymentInfrastructure(configuration)
+            .AddPaymentAuthentication(configuration)
+            .AddPaymentAuthorization()
             .AddPresentationServices();
 
         return services;
@@ -44,7 +44,7 @@ public static class ServiceExtensions
         return services;
     }
 
-    private static IServiceCollection AddInventoryAuthentication(
+    private static IServiceCollection AddPaymentAuthentication(
         this IServiceCollection services,
         IConfiguration configuration)
     {
@@ -63,7 +63,7 @@ public static class ServiceExtensions
         return services;
     }
 
-    private static IServiceCollection AddInventoryAuthorization(this IServiceCollection services)
+    private static IServiceCollection AddPaymentAuthorization(this IServiceCollection services)
     {
         services.AddAuthorization(options =>
         {

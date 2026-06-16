@@ -10,7 +10,7 @@ public static class DependencyInjection
     public static IServiceCollection AddPaymentInfrastructure(this IServiceCollection services, IConfiguration configuration)
     {
         services.AddDbContext<PaymentDbContext>(options =>
-            options.UseSqlServer(configuration.GetConnectionString("ECommerceConnection")));
+            options.UseSqlServer(configuration.GetConnectionString("PaymentConnection")));
 
         return services;
     }

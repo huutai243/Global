@@ -10,7 +10,7 @@ public static class DependencyInjection
     public static IServiceCollection AddInventoryInfrastructure(this IServiceCollection services, IConfiguration configuration)
     {
         services.AddDbContext<InventoryDbContext>(options =>
-            options.UseSqlServer(configuration.GetConnectionString("ECommerceConnection")));
+            options.UseSqlServer(configuration.GetConnectionString("InventoryConnection")));
 
         return services;
     }
