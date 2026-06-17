@@ -1,4 +1,3 @@
-using System.Text;
 using ECommerce.Infrastructure.Security.Core;
 using ECommerce.Ordering.Application.CheckoutCart;
 using ECommerce.Ordering.Infrastructure;
@@ -7,10 +6,12 @@ using ECommerce.Shared.Core.Identity;
 using ECommerce.Shared.Core.Interfaces;
 using ECommerce.Shared.Messaging;
 using ECommerce.Shared.Observability;
+using ECommerce.Shared.Outbox;
 using FluentValidation;
 using MediatR;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
+using System.Text;
 
 namespace ECommerce.Ordering.WebApi.Extensions;
 
@@ -64,6 +65,7 @@ public static class ServiceExtensions
     private static IServiceCollection AddMessagingServices(this IServiceCollection services)
     {
         services.AddSingleton<IMessageNameResolver, DefaultMessageNameResolver>();
+        services.AddSingleton<OutboxMessageFactory>();
 
         return services;
     }
