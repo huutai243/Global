@@ -1,9 +1,9 @@
-using ECommerce.Catalog.Infrastructure;
-using ECommerce.Catalog.Worker;
+using ECommerce.Catalog.Worker.Extensions;
 
 var builder = Host.CreateApplicationBuilder(args);
-builder.Services.AddCatalogInfrastructure(builder.Configuration);
-builder.Services.AddHostedService<Worker>();
+
+builder.Services.AddCatalogWorkerServices(builder.Configuration);
 
 var host = builder.Build();
-host.Run();
+
+await host.RunAsync();

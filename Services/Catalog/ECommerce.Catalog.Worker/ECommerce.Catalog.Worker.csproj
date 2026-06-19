@@ -8,6 +8,9 @@
     <PackageReference Include="Microsoft.Extensions.Hosting" Version="8.0.1" />
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\..\..\Infras\ECommerce.Infrastructure.Observability\ECommerce.Infrastructure.Observability.csproj" />
+    <ProjectReference Include="..\..\..\Infras\ECommerce.Infrastructure.RabbitMq\ECommerce.Infrastructure.RabbitMq.csproj" />
+    <ProjectReference Include="..\..\..\Shared\ECommerce.Shared.Observability\ECommerce.Shared.Observability.csproj" />
     <ProjectReference Include="..\ECommerce.Catalog.Application\ECommerce.Catalog.Application.csproj" />
     <ProjectReference Include="..\ECommerce.Catalog.Infrastructure\ECommerce.Catalog.Infrastructure.csproj" />
     <ProjectReference Include="..\..\..\Shared\ECommerce.Shared.Messaging\ECommerce.Shared.Messaging.csproj" />

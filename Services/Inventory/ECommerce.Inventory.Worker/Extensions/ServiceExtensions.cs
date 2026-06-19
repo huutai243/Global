@@ -1,6 +1,8 @@
 ﻿using ECommerce.Infrastructure.RabbitMq;
+using ECommerce.Inventory.Application.ProductCreated;
 using ECommerce.Inventory.Application.ReserveInventory;
 using ECommerce.Inventory.Infrastructure;
+using ECommerce.Inventory.Worker.Consumers;
 using ECommerce.Inventory.Worker.Options;
 using ECommerce.Shared.Observability;
 using ECommerce.Shared.Outbox;
@@ -37,7 +39,9 @@ public static class ServiceExtensions
     private static IServiceCollection AddApplicationServices(this IServiceCollection services)
     {
         services.AddValidatorsFromAssemblyContaining<ReserveInventoryCommandValidator>();
+
         services.AddScoped<ReserveInventoryCommandHandler>();
+        services.AddScoped<ProductCreatedEventHandler>();
         services.AddScoped<OutboxMessageFactory>();
 
         return services;
@@ -47,7 +51,11 @@ public static class ServiceExtensions
         this IServiceCollection services,
         IConfiguration configuration)
     {
-        services.Configure<ReserveInventoryConsumerOptions>(configuration.GetSection(ReserveInventoryConsumerOptions.SectionName));
+        services.Configure<ReserveInventoryConsumerOptions>(
+            configuration.GetSection(ReserveInventoryConsumerOptions.SectionName));
+
+        services.Configure<ProductCreatedConsumerOptions>(
+            configuration.GetSection(ProductCreatedConsumerOptions.SectionName));
 
         return services;
     }
@@ -55,6 +63,7 @@ public static class ServiceExtensions
     private static IServiceCollection AddBackgroundWorkers(this IServiceCollection services)
     {
         services.AddHostedService<ReserveInventoryConsumer>();
+        services.AddHostedService<ProductCreatedConsumer>();
 
         return services;
     }

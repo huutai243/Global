@@ -11,6 +11,7 @@
     <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="8.0.1" />
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\..\..\Shared\ECommerce.Shared.Outbox\ECommerce.Shared.Outbox.csproj" />
     <ProjectReference Include="..\ECommerce.Catalog.Domain\ECommerce.Catalog.Domain.csproj" />
     <ProjectReference Include="..\..\..\Shared\ECommerce.Shared.Abstractions\ECommerce.Shared.Abstractions.csproj" />
   </ItemGroup>

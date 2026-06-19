@@ -1,8 +1,10 @@
-using ECommerce.Shared.Core.Exceptions;
 using ECommerce.Catalog.Domain.Models;
 using ECommerce.Catalog.Domain.Responses;
 using ECommerce.Catalog.Infrastructure.Persistence;
 using ECommerce.Infrastructure.Storage;
+using ECommerce.Shared.Contracts;
+using ECommerce.Shared.Core.Exceptions;
+using ECommerce.Shared.Outbox;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 
@@ -10,10 +12,16 @@ namespace ECommerce.Catalog.Application.CreateProduct;
 
 public sealed class CreateProductCommandHandler(
     CatalogDbContext dbContext,
-    IBlobStorageService blobStorageService)
+    IBlobStorageService blobStorageService,
+    OutboxMessageFactory outboxMessageFactory)
     : IRequestHandler<CreateProductCommand, ProductResponse>
 {
-    public async Task<ProductResponse> Handle(CreateProductCommand request, CancellationToken cancellationToken)
+    private const string SourceService = "Catalog";
+    private const string DestinationService = "Inventory";
+
+    public async Task<ProductResponse> Handle(
+        CreateProductCommand request,
+        CancellationToken cancellationToken)
     {
         var category = await dbContext.Categories
             .AsNoTracking()
@@ -45,6 +53,8 @@ public sealed class CreateProductCommandHandler(
             imageUrl = uploadResult.Url;
         }
 
+        var utcNow = DateTime.UtcNow;
+
         var product = new Product
         {
             Id = Guid.NewGuid(),
@@ -54,13 +64,27 @@ public sealed class CreateProductCommandHandler(
             Price = request.Price,
             ImageUrl = imageUrl,
             Status = ProductStatus.Active,
-            CreatedAt = DateTime.UtcNow
+            CreatedAt = utcNow
         };
 
-        dbContext.Products.Add(product);
+        var productCreatedEvent = new ProductCreatedEvent(
+            product.Id,
+            product.Name,
+            request.InitialStock,
+            utcNow);
 
-        // TODO: Boundary violation removed. Publish ProductCreated/StockInitializationRequested
-        // so Inventory can create its own InventoryItem.
+        var messageId = Guid.NewGuid().ToString("N");
+
+        var outboxMessage = outboxMessageFactory.Create(
+            productCreatedEvent,
+            SourceService,
+            DestinationService,
+            messageId,
+            messageId,
+            utcNow);
+
+        dbContext.Products.Add(product);
+        dbContext.OutboxMessages.Add(outboxMessage);
 
         await dbContext.SaveChangesAsync(cancellationToken);
 

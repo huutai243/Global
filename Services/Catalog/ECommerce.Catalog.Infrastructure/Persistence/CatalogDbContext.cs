@@ -1,4 +1,5 @@
 using ECommerce.Catalog.Domain.Models;
+using ECommerce.Shared.Outbox;
 using Microsoft.EntityFrameworkCore;
 
 namespace ECommerce.Catalog.Infrastructure.Persistence;
@@ -8,6 +9,7 @@ public sealed class CatalogDbContext(DbContextOptions<CatalogDbContext> options)
     public DbSet<Product> Products => Set<Product>();
 
     public DbSet<Category> Categories => Set<Category>();
+    public DbSet<OutboxMessage> OutboxMessages => Set<OutboxMessage>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -30,6 +32,24 @@ public sealed class CatalogDbContext(DbContextOptions<CatalogDbContext> options)
                 .WithOne(product => product.Category)
                 .HasForeignKey(product => product.CategoryId)
                 .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<OutboxMessage>(builder =>
+        {
+            builder.HasKey(x => x.Id);
+
+            builder.HasIndex(x => x.MessageId)
+                .IsUnique();
+
+            builder.HasIndex(x => new { x.Status, x.NextRetryAtUtc, x.CreatedAtUtc });
+            builder.HasIndex(x => new { x.Status, x.ProcessingStartedAtUtc });
+
+            builder.Property(x => x.Status)
+                .HasConversion<string>()
+                .HasMaxLength(50);
+
+            builder.Property(x => x.RowVersion)
+                .IsRowVersion();
         });
 
         base.OnModelCreating(modelBuilder);
