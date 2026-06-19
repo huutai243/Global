@@ -52,14 +52,18 @@ public sealed class ProductsController(ISender sender) : ControllerBase
     [AllowAnonymous]
     [ProducesResponseType(typeof(ProductResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
-    public async Task<ActionResult<ProductResponse>> GetProductByIdAsync([FromRoute] Guid productId, CancellationToken cancellationToken)
+    public async Task<ActionResult<ProductResponse>> GetProductByIdAsync(
+        [FromRoute] Guid productId,
+        CancellationToken cancellationToken)
     {
-        var response = await sender.Send(new GetProductByIdQuery(productId), cancellationToken);
+        var response = await sender.Send(
+            new GetProductByIdQuery(productId),
+            cancellationToken);
 
         return Ok(response);
     }
 
-    [HttpPost]
+    [HttpPost("create")]
     [Authorize(Roles = UserRoles.Admin)]
     [Consumes("multipart/form-data")]
     [ProducesResponseType(typeof(ProductResponse), StatusCodes.Status201Created)]
@@ -67,7 +71,9 @@ public sealed class ProductsController(ISender sender) : ControllerBase
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
-    public async Task<ActionResult<ProductResponse>> CreateProductAsync([FromForm] CreateProductFormRequest request, CancellationToken cancellationToken)
+    public async Task<ActionResult<ProductResponse>> CreateProductAsync(
+        [FromForm] CreateProductFormRequest request,
+        CancellationToken cancellationToken)
     {
         var command = new CreateProductCommand(
             request.CategoryId,
@@ -79,10 +85,13 @@ public sealed class ProductsController(ISender sender) : ControllerBase
 
         var response = await sender.Send(command, cancellationToken);
 
-        return CreatedAtRoute(nameof(GetProductByIdAsync), new { productId = response.Id }, response);
+        return CreatedAtRoute(
+            nameof(GetProductByIdAsync),
+            new { productId = response.Id },
+            response);
     }
 
-    [HttpPut("{productId:guid}")]
+    [HttpPut("{productId:guid}/update")]
     [Authorize(Roles = UserRoles.Admin)]
     [Consumes("multipart/form-data")]
     [ProducesResponseType(typeof(ProductResponse), StatusCodes.Status200OK)]
@@ -90,7 +99,10 @@ public sealed class ProductsController(ISender sender) : ControllerBase
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
-    public async Task<ActionResult<ProductResponse>> UpdateProductAsync([FromRoute] Guid productId, [FromForm] UpdateProductFormRequest request, CancellationToken cancellationToken)
+    public async Task<ActionResult<ProductResponse>> UpdateProductAsync(
+        [FromRoute] Guid productId,
+        [FromForm] UpdateProductFormRequest request,
+        CancellationToken cancellationToken)
     {
         var command = new UpdateProductCommand(
             productId,
@@ -106,15 +118,19 @@ public sealed class ProductsController(ISender sender) : ControllerBase
         return Ok(response);
     }
 
-    [HttpDelete("{productId:guid}")]
+    [HttpDelete("{productId:guid}/delete")]
     [Authorize(Roles = UserRoles.Admin)]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
-    public async Task<IActionResult> DeleteProductAsync([FromRoute] Guid productId, CancellationToken cancellationToken)
+    public async Task<IActionResult> DeleteProductAsync(
+        [FromRoute] Guid productId,
+        CancellationToken cancellationToken)
     {
-        await sender.Send(new DeleteProductCommand(productId), cancellationToken);
+        await sender.Send(
+            new DeleteProductCommand(productId),
+            cancellationToken);
 
         return NoContent();
     }
@@ -124,14 +140,14 @@ public sealed class ProductsController(ISender sender) : ControllerBase
     [ProducesResponseType(typeof(SearchProductsResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     public async Task<ActionResult<SearchProductsResponse>> SearchProductsAsync(
-    [FromQuery] string? keyword,
-    [FromQuery] Guid? categoryId,
-    [FromQuery] decimal? minPrice,
-    [FromQuery] decimal? maxPrice,
-    [FromQuery] ProductSearchSort sort = ProductSearchSort.Relevance,
-    [FromQuery] int pageNumber = 1,
-    [FromQuery] int pageSize = 20,
-    CancellationToken cancellationToken = default)
+        [FromQuery] string? keyword,
+        [FromQuery] Guid? categoryId,
+        [FromQuery] decimal? minPrice,
+        [FromQuery] decimal? maxPrice,
+        [FromQuery] ProductSearchSort sort = ProductSearchSort.Relevance,
+        [FromQuery] int pageNumber = 1,
+        [FromQuery] int pageSize = 20,
+        CancellationToken cancellationToken = default)
     {
         var response = await sender.Send(
             new SearchProductsQuery
