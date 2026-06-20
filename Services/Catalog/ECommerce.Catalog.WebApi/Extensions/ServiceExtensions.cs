@@ -1,5 +1,4 @@
-﻿using System.Text;
-using ECommerce.Catalog.Application.CreateCategory;
+﻿using ECommerce.Catalog.Application.CreateCategory;
 using ECommerce.Catalog.Application.CreateProduct;
 using ECommerce.Catalog.Application.GetPublicProducts;
 using ECommerce.Catalog.Application.UpdateCategory;
@@ -11,10 +10,13 @@ using ECommerce.Infrastructure.Storage;
 using ECommerce.Shared.Core.Behaviors;
 using ECommerce.Shared.Core.Helpers;
 using ECommerce.Shared.Core.Interfaces;
+using ECommerce.Shared.Messaging;
+using ECommerce.Shared.Outbox;
 using FluentValidation;
 using MediatR;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
+using System.Text;
 
 namespace ECommerce.Catalog.WebApi.Extensions;
 
@@ -53,6 +55,8 @@ public static class ServiceExtensions
     private static IServiceCollection AddCrossCuttingServices(this IServiceCollection services)
     {
         services.AddSingleton<IJsonHelper, JsonHelper>();
+        services.AddSingleton<IMessageNameResolver, DefaultMessageNameResolver>();
+        services.AddSingleton<OutboxMessageFactory>();
 
         return services;
     }
