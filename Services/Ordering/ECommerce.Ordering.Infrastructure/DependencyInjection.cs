@@ -1,10 +1,12 @@
-
 using ECommerce.Ordering.Domain.Contracts.Cart;
 using ECommerce.Ordering.Infrastructure.Clients;
+using ECommerce.Ordering.Infrastructure.Clients.Options;
 using ECommerce.Ordering.Infrastructure.Persistence;
+using ECommerce.Shared.Core.Http;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
 
 namespace ECommerce.Ordering.Infrastructure;
 
@@ -19,14 +21,16 @@ public static class DependencyInjection
 
         if (string.IsNullOrWhiteSpace(connectionString))
         {
-            throw new InvalidOperationException("ECommerce database connection string is not configured.");
+            throw new InvalidOperationException("Ordering database connection string is not configured.");
         }
 
         services.AddDbContext<OrderingDbContext>(options =>
         {
             options.UseSqlServer(connectionString);
         });
-        services.AddScoped<DbContext>(serviceProvider => serviceProvider.GetRequiredService<OrderingDbContext>());
+
+        services.AddScoped<DbContext>(serviceProvider =>
+            serviceProvider.GetRequiredService<OrderingDbContext>());
 
         return services;
     }
@@ -35,17 +39,28 @@ public static class DependencyInjection
         this IServiceCollection services,
         IConfiguration configuration)
     {
-        var baseAddress = configuration["CartApi:BaseAddress"];
+        services.Configure<CartClientOptions>(
+            configuration.GetSection(CartClientOptions.SectionName));
 
-        if (string.IsNullOrWhiteSpace(baseAddress))
-        {
-            throw new InvalidOperationException("Cart API base address is not configured.");
-        }
+        services.AddHttpContextAccessor();
+        services.AddTransient<ForwardAuthorizationHeaderHandler>();
 
-        services.AddHttpClient<ICartCheckoutClient, HttpCartCheckoutClient>(client =>
-        {
-            client.BaseAddress = new Uri(baseAddress);
-        });
+        services
+            .AddHttpClient<ICartCheckoutClient, HttpCartCheckoutClient>(
+                (serviceProvider, client) =>
+                {
+                    var options = serviceProvider
+                        .GetRequiredService<IOptions<CartClientOptions>>()
+                        .Value;
+
+                    if (string.IsNullOrWhiteSpace(options.BaseAddress))
+                    {
+                        throw new InvalidOperationException("CartClient:BaseAddress is not configured.");
+                    }
+
+                    client.BaseAddress = new Uri(options.BaseAddress);
+                })
+            .AddHttpMessageHandler<ForwardAuthorizationHeaderHandler>();
 
         return services;
     }
