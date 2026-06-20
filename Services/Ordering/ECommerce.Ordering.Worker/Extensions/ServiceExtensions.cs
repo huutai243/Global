@@ -1,5 +1,7 @@
 ﻿using ECommerce.Infrastructure.RabbitMq;
+using ECommerce.Ordering.Application.InventoryReservation;
 using ECommerce.Ordering.Infrastructure;
+using ECommerce.Ordering.Worker.Consumers;
 using ECommerce.Ordering.Worker.Options;
 using ECommerce.Shared.Observability;
 
@@ -13,6 +15,7 @@ public static class ServiceExtensions
     {
         services
             .AddInfrastructure(configuration)
+            .AddApplicationServices()
             .AddCrossCuttingServices()
             .AddWorkerOptions(configuration)
             .AddBackgroundWorkers();
@@ -26,6 +29,13 @@ public static class ServiceExtensions
     {
         services.AddOrderingInfrastructure(configuration);
         services.AddRabbitMqMessaging(configuration);
+
+        return services;
+    }
+
+    private static IServiceCollection AddApplicationServices(this IServiceCollection services)
+    {
+        services.AddScoped<InventoryReservationResultHandler>();
 
         return services;
     }
@@ -44,12 +54,16 @@ public static class ServiceExtensions
         services.Configure<OutboxOptions>(
             configuration.GetSection(OutboxOptions.SectionName));
 
+        services.Configure<InventoryReservationResultConsumerOptions>(
+            configuration.GetSection(InventoryReservationResultConsumerOptions.SectionName));
+
         return services;
     }
 
     private static IServiceCollection AddBackgroundWorkers(this IServiceCollection services)
     {
         services.AddHostedService<OutboxProcessor>();
+        services.AddHostedService<InventoryReservationResultConsumer>();
 
         return services;
     }

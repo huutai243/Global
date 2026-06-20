@@ -21,6 +21,7 @@ public sealed class ReserveInventoryCommandHandler(
     private const string ConsumerName = "Inventory.ReserveInventory";
     private const string SourceService = "Inventory";
     private const string DestinationService = "Ordering";
+    private const int MaxConcurrencyRetryCount = 3;
 
     public async Task HandleAsync(
         ReserveInventoryCommand command,
@@ -30,6 +31,35 @@ public sealed class ReserveInventoryCommandHandler(
     {
         await validator.ValidateAndThrowAsync(command, cancellationToken);
 
+        for (var attempt = 1; attempt <= MaxConcurrencyRetryCount; attempt++)
+        {
+            try
+            {
+                await ProcessAsync(command, metadata, payload, cancellationToken);
+                return;
+            }
+            catch (DbUpdateConcurrencyException exception) when (attempt < MaxConcurrencyRetryCount)
+            {
+                dbContext.ChangeTracker.Clear();
+
+                logger.LogWarning(
+                    exception,
+                    "Reserve inventory concurrency conflict. Retrying. Attempt: {Attempt}, MessageId: {MessageId}, OrderId: {OrderId}",
+                    attempt,
+                    metadata.MessageId,
+                    command.OrderId);
+
+                await Task.Delay(TimeSpan.FromMilliseconds(100 * attempt), cancellationToken);
+            }
+        }
+    }
+
+    private async Task ProcessAsync(
+        ReserveInventoryCommand command,
+        MessageMetadata metadata,
+        string payload,
+        CancellationToken cancellationToken)
+    {
         if (await IsProcessedAsync(metadata.MessageId, cancellationToken))
         {
             logger.LogInformation(
@@ -50,8 +80,15 @@ public sealed class ReserveInventoryCommandHandler(
             if (await HasReservationAsync(command.OrderId, cancellationToken))
             {
                 MarkInboxProcessed(inboxMessage);
+
                 await dbContext.SaveChangesAsync(cancellationToken);
                 await transaction.CommitAsync(cancellationToken);
+
+                logger.LogInformation(
+                    "Reserve inventory skipped because reservation already exists. MessageId: {MessageId}, OrderId: {OrderId}",
+                    metadata.MessageId,
+                    command.OrderId);
+
                 return;
             }
 
@@ -96,6 +133,8 @@ public sealed class ReserveInventoryCommandHandler(
 
     private InboxMessage CreateInboxMessage(MessageMetadata metadata, string payload)
     {
+        var utcNow = DateTime.UtcNow;
+
         return new InboxMessage
         {
             Id = Guid.NewGuid(),
@@ -106,24 +145,28 @@ public sealed class ReserveInventoryCommandHandler(
             ConsumerName = ConsumerName,
             Payload = payload,
             Status = InboxMessageStatus.Processing,
-            ReceivedAtUtc = DateTime.UtcNow,
-            ProcessingStartedAtUtc = DateTime.UtcNow
+            ReceivedAtUtc = utcNow,
+            ProcessingStartedAtUtc = utcNow
         };
     }
 
-    private async Task<bool> IsProcessedAsync(string messageId, CancellationToken cancellationToken)
+    private async Task<bool> IsProcessedAsync(
+        string messageId,
+        CancellationToken cancellationToken)
     {
         return await dbContext.InboxMessages.AnyAsync(
-            x => x.MessageId == messageId &&
-                 x.ConsumerName == ConsumerName &&
-                 x.Status == InboxMessageStatus.Processed,
+            message => message.MessageId == messageId
+                && message.ConsumerName == ConsumerName
+                && message.Status == InboxMessageStatus.Processed,
             cancellationToken);
     }
 
-    private async Task<bool> HasReservationAsync(Guid orderId, CancellationToken cancellationToken)
+    private async Task<bool> HasReservationAsync(
+        Guid orderId,
+        CancellationToken cancellationToken)
     {
         return await dbContext.StockReservations.AnyAsync(
-            x => x.OrderId == orderId,
+            reservation => reservation.OrderId == orderId,
             cancellationToken);
     }
 
@@ -131,11 +174,13 @@ public sealed class ReserveInventoryCommandHandler(
         ReserveInventoryCommand command,
         CancellationToken cancellationToken)
     {
-        var productIds = command.Items.Select(x => x.ProductId).ToArray();
+        var productIds = command.Items
+            .Select(item => item.ProductId)
+            .ToArray();
 
         return await dbContext.InventoryItems
-            .Where(x => productIds.Contains(x.ProductId))
-            .ToDictionaryAsync(x => x.ProductId, cancellationToken);
+            .Where(item => productIds.Contains(item.ProductId))
+            .ToDictionaryAsync(item => item.ProductId, cancellationToken);
     }
 
     private static List<InventoryReservationFailedItem> GetFailedItems(
@@ -156,12 +201,12 @@ public sealed class ReserveInventoryCommandHandler(
                     IsFailed = inventoryItem is null || availableQuantity < item.Quantity
                 };
             })
-            .Where(x => x.IsFailed)
-            .Select(x => new InventoryReservationFailedItem(
-                x.Item.ProductId,
-                x.Item.ProductName,
-                x.Item.Quantity,
-                x.AvailableQuantity))
+            .Where(item => item.IsFailed)
+            .Select(item => new InventoryReservationFailedItem(
+                item.Item.ProductId,
+                item.Item.ProductName,
+                item.Item.Quantity,
+                item.AvailableQuantity))
             .ToList();
     }
 
@@ -181,12 +226,18 @@ public sealed class ReserveInventoryCommandHandler(
             inventoryItem.UpdatedAtUtc = utcNow;
         }
 
-        var reservation = CreateReservation(command, StockReservationStatus.Reserved, null, utcNow);
+        var reservation = CreateReservation(
+            command,
+            StockReservationStatus.Reserved,
+            null,
+            utcNow);
 
         var @event = new InventoryReservedEvent(
             command.OrderId,
             command.CustomerId,
-            command.Items.Select(x => new InventoryReservedItem(x.ProductId, x.Quantity)).ToArray(),
+            command.Items
+                .Select(item => new InventoryReservedItem(item.ProductId, item.Quantity))
+                .ToArray(),
             utcNow);
 
         dbContext.StockReservations.Add(reservation);
@@ -251,8 +302,8 @@ public sealed class ReserveInventoryCommandHandler(
             @event,
             SourceService,
             DestinationService,
+            Guid.NewGuid().ToString("N"),
             metadata.CorrelationId,
-            metadata.MessageId,
             utcNow);
     }
 

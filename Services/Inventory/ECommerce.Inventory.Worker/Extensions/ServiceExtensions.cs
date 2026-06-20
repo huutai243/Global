@@ -57,6 +57,9 @@ public static class ServiceExtensions
         services.Configure<ProductCreatedConsumerOptions>(
             configuration.GetSection(ProductCreatedConsumerOptions.SectionName));
 
+        services.Configure<OutboxOptions>(
+            configuration.GetSection(OutboxOptions.SectionName));
+
         return services;
     }
 
@@ -64,6 +67,7 @@ public static class ServiceExtensions
     {
         services.AddHostedService<ReserveInventoryConsumer>();
         services.AddHostedService<ProductCreatedConsumer>();
+        services.AddHostedService<OutboxProcessor>();
 
         return services;
     }
