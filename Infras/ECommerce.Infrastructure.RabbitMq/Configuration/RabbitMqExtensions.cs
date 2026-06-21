@@ -1,3 +1,4 @@
+using ECommerce.Infrastructure.RabbitMq.Publishing;
 using ECommerce.Shared.Core.Interfaces;
 using ECommerce.Shared.Messaging;
 using Microsoft.Extensions.Configuration;

@@ -8,7 +8,7 @@ using Microsoft.Extensions.Options;
 using RabbitMQ.Client;
 using RabbitMQ.Client.Events;
 
-namespace ECommerce.Infrastructure.RabbitMq.RabbitMqPublisher;
+namespace ECommerce.Infrastructure.RabbitMq.Publishing;
 
 public sealed class RabbitMqPublisher(
     IOptions<RabbitMqSettings> options,
