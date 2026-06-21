@@ -1,4 +1,4 @@
-﻿using ECommerce.Infrastructure.RabbitMq;
+﻿using ECommerce.Infrastructure.RabbitMq.Configuration;
 using ECommerce.Inventory.Application.ProductCreated;
 using ECommerce.Inventory.Application.ReserveInventory;
 using ECommerce.Inventory.Infrastructure;

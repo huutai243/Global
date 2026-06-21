@@ -1,6 +1,8 @@
-﻿namespace ECommerce.Catalog.Worker.Options;
+﻿using ECommerce.Shared.Outbox;
 
-public sealed class OutboxOptions
+namespace ECommerce.Catalog.Worker.Options;
+
+public sealed class OutboxOptions : IOutboxProcessorOptions
 {
     public const string SectionName = "Outbox";
 

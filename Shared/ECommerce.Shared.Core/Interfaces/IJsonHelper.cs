@@ -8,6 +8,8 @@ public interface IJsonHelper
 
     TValue DeserializeRequired<TValue>(string value);
 
+    TValue DeserializeRequired<TValue>(string value, string errorMessage);
+
     bool TryDeserialize<TValue>(string value, out TValue? result);
 
     object? Deserialize(string value, Type returnType);

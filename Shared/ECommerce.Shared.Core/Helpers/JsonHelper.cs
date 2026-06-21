@@ -58,4 +58,16 @@ public sealed class JsonHelper : IJsonHelper
 
         return JsonSerializer.Deserialize(value, returnType, JsonSerializerOptions);
     }
+
+    public TValue DeserializeRequired<TValue>(string value, string errorMessage)
+    {
+        var result = Deserialize<TValue>(value);
+
+        if (result is null)
+        {
+            throw new InvalidOperationException(errorMessage);
+        }
+
+        return result;
+    }
 }

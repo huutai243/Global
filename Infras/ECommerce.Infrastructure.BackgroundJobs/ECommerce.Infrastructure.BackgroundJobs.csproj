@@ -10,6 +10,7 @@
     <PackageReference Include="Microsoft.Extensions.Options.ConfigurationExtensions" Version="8.0.0" />
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\..\Shared\ECommerce.Shared.Outbox\ECommerce.Shared.Outbox.csproj" />
     <ProjectReference Include="..\ECommerce.Infrastructure.Persistence\ECommerce.Infrastructure.Persistence.csproj" />
     <ProjectReference Include="..\ECommerce.Infrastructure.RabbitMq\ECommerce.Infrastructure.RabbitMq.csproj" />
     <ProjectReference Include="..\..\Services\Ordering\ECommerce.Ordering.Domain\ECommerce.Ordering.Domain.csproj" />

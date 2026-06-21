@@ -11,9 +11,6 @@ public static class JobExtensions
         services.Configure<OutboxSettings>(configuration.GetSection(nameof(OutboxSettings)));
         services.Configure<CleanupJobSettings>(configuration.GetSection(nameof(CleanupJobSettings)));
         services.Configure<MonitoringJobSettings>(configuration.GetSection(nameof(MonitoringJobSettings)));
-        services.AddScoped<OutboxDispatcher>();
-        services.AddScoped<OutboxRetryJob>();
-        services.AddScoped<OutboxReconcileJob>();
         services.AddScoped<PaymentOrderReconcileJob>();
         services.AddScoped<PendingPaymentReminderJob>();
         services.AddScoped<IdempotencyCleanupJob>();

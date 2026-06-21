@@ -1,4 +1,4 @@
-﻿using ECommerce.Infrastructure.RabbitMq;
+﻿using ECommerce.Infrastructure.RabbitMq.Configuration;
 using ECommerce.Ordering.Application.InventoryReservation;
 using ECommerce.Ordering.Infrastructure;
 using ECommerce.Ordering.Worker.Consumers;

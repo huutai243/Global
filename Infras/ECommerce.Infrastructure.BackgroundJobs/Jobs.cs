@@ -8,35 +8,6 @@ using Microsoft.Extensions.Options;
 
 namespace ECommerce.Infrastructure.BackgroundJobs;
 
-public sealed class OutboxRetryJob(OutboxDispatcher dispatcher, ILogger<OutboxRetryJob> logger) : IBackgroundJob
-{
-    public async Task ExecuteAsync(CancellationToken cancellationToken = default)
-    {
-        logger.LogInformation("Retry job retried pending outbox messages");
-        await dispatcher.ExecuteAsync(cancellationToken);
-    }
-}
-
-public sealed class OutboxReconcileJob(ECommerceDbContext dbContext, ILogger<OutboxReconcileJob> logger) : IBackgroundJob
-{
-    public async Task ExecuteAsync(CancellationToken cancellationToken = default)
-    {
-        var cutoff = DateTime.UtcNow.AddMinutes(-10);
-        var stuckMessages = await dbContext.OutboxMessages
-            .Where(message => message.Status == OutboxStatus.Processing && message.CreatedAt < cutoff)
-            .ToListAsync(cancellationToken);
-
-        foreach (var message in stuckMessages)
-        {
-            message.Status = OutboxStatus.Pending;
-            message.NextRetryAt = DateTime.UtcNow;
-            logger.LogWarning("Reconcile job found stuck outbox message {OutboxMessageId}", message.Id);
-        }
-
-        await dbContext.SaveChangesAsync(cancellationToken);
-    }
-}
-
 public sealed class PaymentOrderReconcileJob(ECommerceDbContext dbContext, ILogger<PaymentOrderReconcileJob> logger) : IBackgroundJob
 {
     public async Task ExecuteAsync(CancellationToken cancellationToken = default)

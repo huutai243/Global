@@ -1,6 +1,6 @@
 ﻿using ECommerce.Catalog.Infrastructure;
 using ECommerce.Catalog.Worker.Options;
-using ECommerce.Infrastructure.RabbitMq;
+using ECommerce.Infrastructure.RabbitMq.Configuration;
 using ECommerce.Shared.Observability;
 using ECommerce.Shared.Outbox;
 

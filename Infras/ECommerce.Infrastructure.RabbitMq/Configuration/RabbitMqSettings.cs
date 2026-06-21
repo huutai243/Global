@@ -1,4 +1,4 @@
-namespace ECommerce.Infrastructure.RabbitMq;
+namespace ECommerce.Infrastructure.RabbitMq.Configuration;
 
 public sealed class RabbitMqSettings
 {

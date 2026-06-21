@@ -9,4 +9,8 @@ public sealed class ReserveInventoryConsumerOptions
     public string RoutingKey { get; init; } = "ECommerce.Shared.Contracts.ReserveInventoryCommand";
 
     public ushort PrefetchCount { get; init; } = 4;
+
+    public int MaxRetryCount { get; init; } = 5;
+
+    public int RetryDelaySeconds { get; init; } = 10;
 }

@@ -1,6 +1,8 @@
-﻿namespace ECommerce.Inventory.Worker.Options;
+﻿using ECommerce.Shared.Outbox;
 
-public sealed class OutboxOptions
+namespace ECommerce.Inventory.Worker.Options;
+
+public sealed class OutboxOptions : IOutboxProcessorOptions
 {
     public const string SectionName = "Outbox";
 
@@ -15,4 +17,4 @@ public sealed class OutboxOptions
     public int MaxRetryDelaySeconds { get; init; } = 300;
 
     public int ProcessingTimeoutSeconds { get; init; } = 300;
-}  
+}
