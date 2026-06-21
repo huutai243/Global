@@ -4,6 +4,8 @@ using ECommerce.Inventory.Application.ReserveInventory;
 using ECommerce.Inventory.Infrastructure;
 using ECommerce.Inventory.Worker.Consumers;
 using ECommerce.Inventory.Worker.Options;
+using ECommerce.Shared.Core.Helpers;
+using ECommerce.Shared.Core.Interfaces;
 using ECommerce.Shared.Observability;
 using ECommerce.Shared.Outbox;
 using FluentValidation;
@@ -39,6 +41,7 @@ public static class ServiceExtensions
     private static IServiceCollection AddApplicationServices(this IServiceCollection services)
     {
         services.AddValidatorsFromAssemblyContaining<ReserveInventoryCommandValidator>();
+        services.AddSingleton<IJsonHelper, JsonHelper>();
 
         services.AddScoped<ReserveInventoryCommandHandler>();
         services.AddScoped<ProductCreatedEventHandler>();

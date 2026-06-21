@@ -1,6 +1,8 @@
 ﻿using ECommerce.Catalog.Infrastructure;
 using ECommerce.Catalog.Worker.Options;
 using ECommerce.Infrastructure.RabbitMq.Configuration;
+using ECommerce.Shared.Core.Helpers;
+using ECommerce.Shared.Core.Interfaces;
 using ECommerce.Shared.Observability;
 using ECommerce.Shared.Outbox;
 
@@ -27,6 +29,7 @@ public static class ServiceExtensions
     {
         services.AddCatalogInfrastructure(configuration);
         services.AddRabbitMqMessaging(configuration);
+        services.AddSingleton<IJsonHelper, JsonHelper>();
 
         return services;
     }

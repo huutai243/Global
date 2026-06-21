@@ -3,6 +3,8 @@ using ECommerce.Ordering.Application.InventoryReservation;
 using ECommerce.Ordering.Infrastructure;
 using ECommerce.Ordering.Worker.Consumers;
 using ECommerce.Ordering.Worker.Options;
+using ECommerce.Shared.Core.Helpers;
+using ECommerce.Shared.Core.Interfaces;
 using ECommerce.Shared.Observability;
 
 namespace ECommerce.Ordering.Worker.Extensions;
@@ -36,6 +38,7 @@ public static class ServiceExtensions
     private static IServiceCollection AddApplicationServices(this IServiceCollection services)
     {
         services.AddScoped<InventoryReservationResultHandler>();
+        services.AddSingleton<IJsonHelper, JsonHelper>();
 
         return services;
     }
