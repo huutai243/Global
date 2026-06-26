@@ -14,6 +14,7 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\..\Infras\ECommerce.Infrastructure.BackgroundJobs\ECommerce.Infrastructure.BackgroundJobs.csproj" />
+    <ProjectReference Include="..\..\..\Infras\ECommerce.Infrastructure.Kafka\ECommerce.Infrastructure.Kafka.csproj" />
     <ProjectReference Include="..\..\..\Infras\ECommerce.Infrastructure.RabbitMq\ECommerce.Infrastructure.RabbitMq.csproj" />
     <ProjectReference Include="..\ECommerce.Ordering.Application\ECommerce.Ordering.Application.csproj" />
     <ProjectReference Include="..\ECommerce.Ordering.Infrastructure\ECommerce.Ordering.Infrastructure.csproj" />

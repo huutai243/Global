@@ -5,11 +5,13 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
   <ItemGroup>
-    <PackageReference Include="Confluent.Kafka" Version="2.5.0" />
-    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="8.0.2" />
+    <PackageReference Include="Confluent.Kafka" Version="2.14.2" />
+    <PackageReference Include="Microsoft.Extensions.Hosting" Version="8.0.1" />
+    <PackageReference Include="Microsoft.Extensions.Options" Version="10.0.9" />
     <PackageReference Include="Microsoft.Extensions.Options.ConfigurationExtensions" Version="8.0.0" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\Shared\ECommerce.Shared.Core\ECommerce.Shared.Core.csproj" />
+    <ProjectReference Include="..\..\Shared\ECommerce.Shared.Messaging\ECommerce.Shared.Messaging.csproj" />
   </ItemGroup>
 </Project>

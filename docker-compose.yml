@@ -31,7 +31,88 @@ services:
     volumes:
       - azurite_data:/data
 
+  ecommerce-zookeeper:
+    image: confluentinc/cp-zookeeper:7.6.1
+    container_name: ecommerce-zookeeper
+    hostname: ecommerce-zookeeper
+    ports:
+      - "2181:2181"
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    volumes:
+      - zookeeper_data:/var/lib/zookeeper/data
+      - zookeeper_log:/var/lib/zookeeper/log
+
+  ecommerce-kafka:
+    image: confluentinc/cp-kafka:7.6.1
+    container_name: ecommerce-kafka
+    hostname: ecommerce-kafka
+    depends_on:
+      - ecommerce-zookeeper
+    ports:
+      - "9092:9092"
+      - "29092:29092"
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: ecommerce-zookeeper:2181
+
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:29092,PLAINTEXT_HOST://0.0.0.0:9092
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://ecommerce-kafka:29092,PLAINTEXT_HOST://localhost:9092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+    volumes:
+      - kafka_data:/var/lib/kafka/data
+
+  ecommerce-kafka-connect:
+    image: debezium/connect:2.7.3.Final
+    container_name: ecommerce-kafka-connect
+    hostname: ecommerce-kafka-connect
+    depends_on:
+      - ecommerce-kafka
+    ports:
+      - "8083:8083"
+    environment:
+      BOOTSTRAP_SERVERS: ecommerce-kafka:29092
+      GROUP_ID: ecommerce-connect-cluster
+
+      CONFIG_STORAGE_TOPIC: ecommerce-connect-configs
+      OFFSET_STORAGE_TOPIC: ecommerce-connect-offsets
+      STATUS_STORAGE_TOPIC: ecommerce-connect-status
+
+      CONFIG_STORAGE_REPLICATION_FACTOR: 1
+      OFFSET_STORAGE_REPLICATION_FACTOR: 1
+      STATUS_STORAGE_REPLICATION_FACTOR: 1
+
+      KEY_CONVERTER: org.apache.kafka.connect.json.JsonConverter
+      VALUE_CONVERTER: org.apache.kafka.connect.json.JsonConverter
+      KEY_CONVERTER_SCHEMAS_ENABLE: "false"
+      VALUE_CONVERTER_SCHEMAS_ENABLE: "false"
+
+  ecommerce-kafka-ui:
+    image: provectuslabs/kafka-ui:latest
+    container_name: ecommerce-kafka-ui
+    depends_on:
+      - ecommerce-kafka
+      - ecommerce-kafka-connect
+    ports:
+      - "8085:8080"
+    environment:
+      KAFKA_CLUSTERS_0_NAME: ecommerce-local
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: ecommerce-kafka:29092
+      KAFKA_CLUSTERS_0_KAFKACONNECT_0_NAME: ecommerce-connect
+      KAFKA_CLUSTERS_0_KAFKACONNECT_0_ADDRESS: http://ecommerce-kafka-connect:8083
+
 volumes:
   rabbitmq_data:
   redis_data:
   azurite_data:
+  zookeeper_data:
+  zookeeper_log:
+  kafka_data:

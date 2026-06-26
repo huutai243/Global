@@ -1,8 +1,10 @@
-﻿using ECommerce.Infrastructure.RabbitMq.Configuration;
+﻿using ECommerce.Infrastructure.Kafka.Configuration;
+using ECommerce.Infrastructure.RabbitMq.Configuration;
 using ECommerce.Inventory.Application.ProductCreated;
 using ECommerce.Inventory.Application.ReserveInventory;
 using ECommerce.Inventory.Infrastructure;
 using ECommerce.Inventory.Worker.Consumers;
+using ECommerce.Inventory.Worker.Consumers.Kafka;
 using ECommerce.Inventory.Worker.Options;
 using ECommerce.Shared.Core.Helpers;
 using ECommerce.Shared.Core.Interfaces;
@@ -33,6 +35,7 @@ public static class ServiceExtensions
     {
         services.AddInventoryInfrastructure(configuration);
         services.AddRabbitMqMessaging(configuration);
+        services.AddKafkaMessaging(configuration);
         services.AddObservability();
 
         return services;
@@ -54,6 +57,16 @@ public static class ServiceExtensions
         this IServiceCollection services,
         IConfiguration configuration)
     {
+        services.AddRabbitMqWorkerOptions(configuration);
+        services.AddKafkaWorkerOptions(configuration);
+
+        return services;
+    }
+
+    private static IServiceCollection AddRabbitMqWorkerOptions(
+        this IServiceCollection services,
+        IConfiguration configuration)
+    {
         services.Configure<ReserveInventoryConsumerOptions>(
             configuration.GetSection(ReserveInventoryConsumerOptions.SectionName));
 
@@ -66,11 +79,46 @@ public static class ServiceExtensions
         return services;
     }
 
+    private static IServiceCollection AddKafkaWorkerOptions(
+        this IServiceCollection services,
+        IConfiguration configuration)
+    {
+        services.Configure<ReserveInventoryKafkaConsumerOptions>(
+            configuration.GetSection(ReserveInventoryKafkaConsumerOptions.SectionName));
+
+        return services;
+    }
+
     private static IServiceCollection AddBackgroundWorkers(this IServiceCollection services)
     {
-        services.AddHostedService<ReserveInventoryConsumer>();
+        // Core checkout CDC/Kafka flow.
+        services.AddKafkaWorkers();
+
+        // RabbitMQ flow. Enable this when using RabbitMQ for Inventory flows.
+        services.AddRabbitMqWorkers();
+
+        return services;
+    }
+
+    private static IServiceCollection AddKafkaWorkers(this IServiceCollection services)
+    {
+        services.AddHostedService<ReserveInventoryKafkaConsumer>();
+
+        return services;
+    }
+
+    private static IServiceCollection AddRabbitMqWorkers(this IServiceCollection services)
+    {
+        // Catalog → Inventory product sync.
         services.AddHostedService<ProductCreatedConsumer>();
-        services.AddHostedService<OutboxProcessor>();
+
+        // Legacy/core RabbitMQ reserve inventory flow.
+        // Enable this only when ReserveInventoryCommand comes from RabbitMQ.
+        // services.AddHostedService<ReserveInventoryConsumer>();
+
+        // Polling outbox publisher.
+        // Enable this only when Inventory publishes reply via RabbitMQ/OutboxProcessor.
+        // services.AddHostedService<OutboxProcessor>();
 
         return services;
     }
