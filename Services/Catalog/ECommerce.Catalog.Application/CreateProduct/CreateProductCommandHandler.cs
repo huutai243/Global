@@ -35,69 +35,83 @@ public sealed class CreateProductCommandHandler(
         }
 
         string? imageUrl = null;
+        string? blobName = null;
 
-        if (request.Image is not null)
+        try
         {
-            var uploadRequest = new FileUploadRequest
+            if (request.Image is not null)
             {
-                Content = request.Image.Content,
-                FileName = request.Image.FileName,
-                ContentType = request.Image.ContentType,
-                FolderPath = "products"
+                var uploadRequest = new FileUploadRequest
+                {
+                    Content = request.Image.Content,
+                    FileName = request.Image.FileName,
+                    ContentType = request.Image.ContentType,
+                    FolderPath = "products"
+                };
+
+                var uploadResult = await blobStorageService.UploadAsync(
+                    uploadRequest,
+                    cancellationToken);
+
+                imageUrl = uploadResult.Url;
+                blobName = uploadResult.BlobName;
+            }
+
+            var utcNow = DateTime.UtcNow;
+
+            var product = new Product
+            {
+                Id = Guid.NewGuid(),
+                CategoryId = request.CategoryId,
+                Name = request.Name.Trim(),
+                Description = request.Description,
+                Price = request.Price,
+                ImageUrl = imageUrl,
+                Status = ProductStatus.Active,
+                CreatedAt = utcNow
             };
 
-            var uploadResult = await blobStorageService.UploadAsync(
-                uploadRequest,
-                cancellationToken);
+            var productCreatedEvent = new ProductCreatedEvent(
+                product.Id,
+                product.Name,
+                request.InitialStock,
+                utcNow);
 
-            imageUrl = uploadResult.Url;
+            var messageId = Guid.NewGuid().ToString("N");
+
+            var outboxMessage = outboxMessageFactory.Create(
+                productCreatedEvent,
+                SourceService,
+                DestinationService,
+                messageId,
+                messageId,
+                utcNow);
+
+            dbContext.Products.Add(product);
+            dbContext.OutboxMessages.Add(outboxMessage);
+
+            await dbContext.SaveChangesAsync(cancellationToken);
+
+            return new ProductResponse
+            {
+                Id = product.Id,
+                CategoryId = product.CategoryId,
+                CategoryName = category.Name,
+                Name = product.Name,
+                Description = product.Description,
+                Price = product.Price,
+                ImageUrl = product.ImageUrl,
+                Status = product.Status.ToString()
+            };
         }
-
-        var utcNow = DateTime.UtcNow;
-
-        var product = new Product
+        catch
         {
-            Id = Guid.NewGuid(),
-            CategoryId = request.CategoryId,
-            Name = request.Name.Trim(),
-            Description = request.Description,
-            Price = request.Price,
-            ImageUrl = imageUrl,
-            Status = ProductStatus.Active,
-            CreatedAt = utcNow
-        };
+            if (!string.IsNullOrWhiteSpace(blobName))
+            {
+                await blobStorageService.DeleteAsync(blobName, CancellationToken.None);
+            }
 
-        var productCreatedEvent = new ProductCreatedEvent(
-            product.Id,
-            product.Name,
-            request.InitialStock,
-            utcNow);
-
-        var messageId = Guid.NewGuid().ToString("N");
-
-        var outboxMessage = outboxMessageFactory.Create(
-            productCreatedEvent,
-            SourceService,
-            DestinationService,
-            messageId,
-            messageId,
-            utcNow);
-
-        dbContext.Products.Add(product);
-        dbContext.OutboxMessages.Add(outboxMessage);
-
-        await dbContext.SaveChangesAsync(cancellationToken);
-
-        return new ProductResponse
-        {
-            Id = product.Id,
-            CategoryId = product.CategoryId,
-            CategoryName = category.Name,
-            Name = product.Name,
-            Description = product.Description,
-            Price = product.Price,
-            ImageUrl = product.ImageUrl,
-            Status = product.Status.ToString()
-        };
+            throw;
+        }
     }
 }

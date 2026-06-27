@@ -30,6 +30,9 @@ public sealed class CheckoutCartCommandHandler(
         var customerId = GetRequiredCustomerId();
         var idempotencyKey = GetRequiredIdempotencyKey(request);
 
+        // IDEMPOTENCY NOTE:
+        // Checkout is client-idempotent by CustomerId + IdempotencyKey.
+        // A duplicate request must return the original order instead of creating a second business effect.
         var existingOrder = await FindExistingOrderAsync(customerId, idempotencyKey, cancellationToken);
 
         if (existingOrder is not null)
@@ -93,6 +96,9 @@ public sealed class CheckoutCartCommandHandler(
         string idempotencyKey,
         CancellationToken cancellationToken)
     {
+        // ENTERPRISE NOTE:
+        // This operation is strongly consistent only within the Ordering database.
+        // Cross-service consistency is achieved asynchronously through Outbox + CDC + Kafka.
         await using var transaction = await dbContext.Database.BeginTransactionAsync(cancellationToken);
 
         try
@@ -100,6 +106,9 @@ public sealed class CheckoutCartCommandHandler(
             dbContext.Orders.Add(order);
             dbContext.OutboxMessages.Add(outboxMessage);
 
+            // ACID NOTE:
+            // This SaveChanges/transaction must include Order, OrderItems, and OutboxMessage.
+            // Otherwise Ordering could commit an order without publishing the inventory reservation command.
             await dbContext.SaveChangesAsync(cancellationToken);
             await transaction.CommitAsync(cancellationToken);
 
@@ -178,6 +187,9 @@ public sealed class CheckoutCartCommandHandler(
             CustomerId = customerId,
             IdempotencyKey = idempotencyKey,
             TotalAmount = orderItems.Sum(orderItem => orderItem.LineTotal),
+            // TODO RECONCILIATION:
+            // Add a reconciliation job to detect orders stuck in this state longer than a threshold.
+            // The job should compare Ordering, Inventory, Payment, Outbox, and Inbox state.
             Status = OrderStatus.PendingInventoryReservation,
             Items = orderItems,
             CreatedAt = utcNow

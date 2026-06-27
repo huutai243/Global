@@ -14,38 +14,52 @@ public sealed class CreateCategoryCommandHandler(
     public async Task<CategoryResponse> Handle(CreateCategoryCommand request, CancellationToken cancellationToken)
     {
         string? imageUrl = null;
+        string? blobName = null;
 
-        if (request.Image is not null)
+        try
         {
-            var uploadRequest = new FileUploadRequest
+            if (request.Image is not null)
             {
-                Content = request.Image.Content,
-                FileName = request.Image.FileName,
-                ContentType = request.Image.ContentType,
-                FolderPath = "categories"
+                var uploadRequest = new FileUploadRequest
+                {
+                    Content = request.Image.Content,
+                    FileName = request.Image.FileName,
+                    ContentType = request.Image.ContentType,
+                    FolderPath = "categories"
+                };
+
+                var uploadResult = await blobStorageService.UploadAsync(
+                    uploadRequest,
+                    cancellationToken);
+
+                imageUrl = uploadResult.Url;
+                blobName = uploadResult.BlobName;
+            }
+
+            var category = new Category
+            {
+                Id = Guid.NewGuid(),
+                Name = request.Name.Trim(),
+                Description = request.Description,
+                IsActive = true,
+                ImageUrl = imageUrl,
+                CreatedAt = DateTime.UtcNow
             };
 
-            var uploadResult = await blobStorageService.UploadAsync(
-                uploadRequest,
-                cancellationToken);
+            dbContext.Categories.Add(category);
+            await dbContext.SaveChangesAsync(cancellationToken);
 
-            imageUrl = uploadResult.Url;
+            return MapToResponse(category);
         }
-
-        var category = new Category
+        catch
         {
-            Id = Guid.NewGuid(),
-            Name = request.Name.Trim(),
-            Description = request.Description,
-            IsActive = true,
-            ImageUrl = imageUrl,
-            CreatedAt = DateTime.UtcNow
-        };
+            if (!string.IsNullOrWhiteSpace(blobName))
+            {
+                await blobStorageService.DeleteAsync(blobName, CancellationToken.None);
+            }
 
-        dbContext.Categories.Add(category);
-        await dbContext.SaveChangesAsync(cancellationToken);
-
-        return MapToResponse(category);
+            throw;
+        }
     }
 
     private static CategoryResponse MapToResponse(Category category)

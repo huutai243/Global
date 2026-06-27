@@ -20,12 +20,18 @@ public sealed class InventoryDbContext(DbContextOptions<InventoryDbContext> opti
         {
             builder.HasKey(x => x.Id);
             builder.HasIndex(x => x.ProductId).IsUnique();
+            // STRONG CONSISTENCY NOTE:
+            // RowVersion gives EF optimistic concurrency for stock rows.
+            // Reservation handlers must treat conflicts as retryable to avoid lost updates and oversell.
             builder.Property(x => x.RowVersion).IsRowVersion();
         });
 
         modelBuilder.Entity<StockReservation>(builder =>
         {
             builder.HasKey(x => x.Id);
+            // IDEMPOTENCY NOTE:
+            // One StockReservation per OrderId prevents duplicate ReserveInventoryCommand delivery
+            // from creating multiple reservations or decrementing stock more than once.
             builder.HasIndex(x => x.OrderId).IsUnique();
 
             builder.Property(x => x.Status)
@@ -56,6 +62,8 @@ public sealed class InventoryDbContext(DbContextOptions<InventoryDbContext> opti
         {
             builder.HasKey(x => x.Id);
 
+            // IDEMPOTENCY NOTE:
+            // MessageId + ConsumerName is the durable duplicate-detection key for at-least-once delivery.
             builder.HasIndex(x => new { x.MessageId, x.ConsumerName })
                 .IsUnique();
 
@@ -71,6 +79,9 @@ public sealed class InventoryDbContext(DbContextOptions<InventoryDbContext> opti
         {
             builder.HasKey(x => x.Id);
 
+            // AUDIT NOTE:
+            // Outbox/Inbox provide integration trace, but not a full business audit trail.
+            // A real audit trail should record actor, action, entity id, old value, new value, correlation id, and timestamp.
             builder.HasIndex(x => x.MessageId)
                 .IsUnique();
 

@@ -10,6 +10,9 @@ public class Order
 
     public decimal TotalAmount { get; set; }
 
+    // AUDIT NOTE:
+    // Order status is a critical business state, but this entity stores only the current value.
+    // Banking-grade systems should persist a status-history/audit table with actor, old value, new value, correlation id, and timestamp.
     public OrderStatus Status { get; set; }
 
     public List<OrderItem> Items { get; set; } = [];

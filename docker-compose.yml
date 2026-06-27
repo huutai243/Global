@@ -69,13 +69,42 @@ services:
       KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
     volumes:
       - kafka_data:/var/lib/kafka/data
+    healthcheck:
+      test: ["CMD-SHELL", "kafka-topics --bootstrap-server localhost:9092 --list > /dev/null 2>&1 || exit 1"]
+      interval: 10s
+      timeout: 10s
+      retries: 12
+
+  ecommerce-kafka-topics-setup:
+    image: confluentinc/cp-kafka:7.6.1
+    container_name: ecommerce-kafka-topics-setup
+    depends_on:
+      ecommerce-kafka:
+        condition: service_healthy
+    entrypoint: /bin/bash
+    command: |
+      -c "
+      echo 'Creating Kafka topics...' &&
+
+      /usr/bin/kafka-topics --bootstrap-server ecommerce-kafka:29092 --create --if-not-exists --topic ordering.outbox.ECommerce.Shared.Contracts.ReserveInventoryCommand --partitions 1 --replication-factor 1 &&
+
+      /usr/bin/kafka-topics --bootstrap-server ecommerce-kafka:29092 --create --if-not-exists --topic inventory.outbox.ECommerce.Shared.Contracts.InventoryReservedEvent --partitions 1 --replication-factor 1 &&
+
+      /usr/bin/kafka-topics --bootstrap-server ecommerce-kafka:29092 --create --if-not-exists --topic inventory.outbox.ECommerce.Shared.Contracts.InventoryReservationFailedEvent --partitions 1 --replication-factor 1 &&
+
+      echo 'Kafka topics created.'
+      "
+    restart: "no"
 
   ecommerce-kafka-connect:
     image: debezium/connect:2.7.3.Final
     container_name: ecommerce-kafka-connect
     hostname: ecommerce-kafka-connect
     depends_on:
-      - ecommerce-kafka
+      ecommerce-kafka:
+        condition: service_healthy
+      ecommerce-kafka-topics-setup:
+        condition: service_completed_successfully
     ports:
       - "8083:8083"
     environment:
@@ -94,13 +123,91 @@ services:
       VALUE_CONVERTER: org.apache.kafka.connect.json.JsonConverter
       KEY_CONVERTER_SCHEMAS_ENABLE: "false"
       VALUE_CONVERTER_SCHEMAS_ENABLE: "false"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8083/connectors > /dev/null 2>&1 || exit 1"]
+      interval: 10s
+      timeout: 10s
+      retries: 12
+
+  ecommerce-cdc-setup:
+    image: mcr.microsoft.com/mssql-tools
+    container_name: ecommerce-cdc-setup
+    depends_on:
+      ecommerce-kafka-connect:
+        condition: service_healthy
+    volumes:
+      - ./Deployment/Cdc:/cdc
+    entrypoint: /bin/bash
+    command: |
+      -c "
+      echo 'Waiting for SQL Server local...' &&
+      until /opt/mssql-tools/bin/sqlcmd -S host.docker.internal,1433 -U sa -P 'Taipham2403*#!@' -Q 'SELECT 1' > /dev/null 2>&1; do
+        echo 'SQL Server not ready, retrying...';
+        sleep 5;
+      done &&
+
+      echo 'Checking CDC scripts...' &&
+      ls -la /cdc &&
+      test -f /cdc/EnableOrderingOutboxCdc.sql &&
+      test -f /cdc/EnableInventoryOutboxCdc.sql &&
+
+      echo 'Running Ordering CDC setup...' &&
+      cat /cdc/EnableOrderingOutboxCdc.sql | /opt/mssql-tools/bin/sqlcmd -S host.docker.internal,1433 -U sa -P 'Taipham2403*#!@' &&
+
+      echo 'Running Inventory CDC setup...' &&
+      cat /cdc/EnableInventoryOutboxCdc.sql | /opt/mssql-tools/bin/sqlcmd -S host.docker.internal,1433 -U sa -P 'Taipham2403*#!@' &&
+
+      echo 'CDC setup completed.'
+      "
+    restart: "no"
+
+  ecommerce-debezium-setup:
+    image: curlimages/curl:latest
+    container_name: ecommerce-debezium-setup
+    depends_on:
+      ecommerce-kafka-connect:
+        condition: service_healthy
+      ecommerce-cdc-setup:
+        condition: service_completed_successfully
+    volumes:
+      - ./Deployment/Debezium:/debezium
+    entrypoint: /bin/sh
+    command: |
+      -c "
+      echo 'Waiting for Kafka Connect...' &&
+      until curl -f http://ecommerce-kafka-connect:8083/connectors > /dev/null 2>&1; do
+        echo 'Kafka Connect not ready, retrying...';
+        sleep 5;
+      done &&
+
+      echo 'Checking Debezium connector configs...' &&
+      ls -la /debezium &&
+      test -f /debezium/OrderingOutboxConnector.json &&
+      test -f /debezium/InventoryOutboxConnector.json &&
+
+      echo 'Removing existing Debezium connectors if they exist...' &&
+      curl -s -X DELETE http://ecommerce-kafka-connect:8083/connectors/ordering-outbox-connector || true &&
+      curl -s -X DELETE http://ecommerce-kafka-connect:8083/connectors/inventory-outbox-connector || true &&
+      sleep 3 &&
+
+      echo 'Registering Ordering Debezium connector...' &&
+      curl -f -X POST -H 'Content-Type: application/json' --data-binary @/debezium/OrderingOutboxConnector.json http://ecommerce-kafka-connect:8083/connectors &&
+
+      echo 'Registering Inventory Debezium connector...' &&
+      curl -f -X POST -H 'Content-Type: application/json' --data-binary @/debezium/InventoryOutboxConnector.json http://ecommerce-kafka-connect:8083/connectors &&
+
+      echo 'Debezium connectors registered.'
+      "
+    restart: "no"
 
   ecommerce-kafka-ui:
     image: provectuslabs/kafka-ui:latest
     container_name: ecommerce-kafka-ui
     depends_on:
-      - ecommerce-kafka
-      - ecommerce-kafka-connect
+      ecommerce-kafka:
+        condition: service_healthy
+      ecommerce-kafka-connect:
+        condition: service_healthy
     ports:
       - "8085:8080"
     environment:

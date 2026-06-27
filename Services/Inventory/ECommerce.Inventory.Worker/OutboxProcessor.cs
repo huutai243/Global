@@ -27,6 +27,9 @@ public sealed class OutboxProcessor(
         OutboxMessage message,
         CancellationToken cancellationToken)
     {
+        // ENTERPRISE NOTE:
+        // This processor is the legacy RabbitMQ path. The core checkout result path should use
+        // Inventory OutboxMessages + SQL Server CDC + Debezium + Kafka.
         var inventoryReservedEventType = messageNameResolver.ResolveMessageName(typeof(InventoryReservedEvent));
 
         if (string.Equals(message.MessageType, inventoryReservedEventType, StringComparison.Ordinal))

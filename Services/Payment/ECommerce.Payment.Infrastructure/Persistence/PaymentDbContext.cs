@@ -22,6 +22,9 @@ public sealed class PaymentDbContext(DbContextOptions<PaymentDbContext> options)
             entity.Property(payment => payment.Status).HasConversion<string>().HasMaxLength(50);
             entity.Property(payment => payment.Provider).HasMaxLength(100).IsRequired();
             entity.Property(payment => payment.ProviderTransactionId).HasMaxLength(200);
+            // IDEMPOTENCY NOTE:
+            // This is not a unique idempotency guard. Payment exactly-once business effect
+            // still needs a persisted idempotency key or provider transaction uniqueness strategy.
             entity.HasIndex(payment => payment.OrderId);
         });
 
@@ -35,6 +38,9 @@ public sealed class PaymentDbContext(DbContextOptions<PaymentDbContext> options)
     {
         modelBuilder.Entity<OutboxMessage>(entity =>
         {
+            // AUDIT NOTE:
+            // Outbox/Inbox provide integration trace, but not a full business audit trail.
+            // A real audit trail should record actor, action, entity id, old value, new value, correlation id, and timestamp.
             entity.ToTable("OutboxMessages");
             entity.HasKey(message => message.Id);
             entity.Property(message => message.MessageId).HasMaxLength(100).IsRequired();
@@ -47,6 +53,8 @@ public sealed class PaymentDbContext(DbContextOptions<PaymentDbContext> options)
             entity.Property(message => message.Status).HasConversion<string>().HasMaxLength(50).IsRequired();
             entity.Property(message => message.ErrorMessage).HasMaxLength(4000);
             entity.Property(message => message.RowVersion).IsRowVersion();
+            // IDEMPOTENCY NOTE:
+            // Unique MessageId protects stored integration records, but broker delivery may still duplicate messages.
             entity.HasIndex(message => message.MessageId).IsUnique();
             entity.HasIndex(message => new { message.Status, message.NextRetryAtUtc, message.CreatedAtUtc });
             entity.HasIndex(message => message.CorrelationId);
@@ -68,6 +76,8 @@ public sealed class PaymentDbContext(DbContextOptions<PaymentDbContext> options)
             entity.Property(message => message.Status).HasConversion<string>().HasMaxLength(50).IsRequired();
             entity.Property(message => message.ErrorMessage).HasMaxLength(4000);
             entity.Property(message => message.RowVersion).IsRowVersion();
+            // IDEMPOTENCY NOTE:
+            // MessageId + ConsumerName is the durable duplicate-detection key for at-least-once consumers.
             entity.HasIndex(message => new { message.MessageId, message.ConsumerName }).IsUnique();
             entity.HasIndex(message => new { message.Status, message.NextRetryAtUtc, message.ReceivedAtUtc });
             entity.HasIndex(message => message.CorrelationId);

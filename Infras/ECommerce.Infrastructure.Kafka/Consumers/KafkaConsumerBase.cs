@@ -13,7 +13,7 @@ public abstract class KafkaConsumerBase<TConsumer>(
     : BackgroundService
     where TConsumer : class
 {
-    protected abstract string TopicName { get; }
+    protected abstract IReadOnlyCollection<string> TopicNames { get; }
 
     protected virtual string ConsumerGroupId => kafkaSettings.GroupId;
 
@@ -21,12 +21,12 @@ public abstract class KafkaConsumerBase<TConsumer>(
     {
         using var consumer = CreateConsumer();
 
-        consumer.Subscribe(TopicName);
+        consumer.Subscribe(TopicNames);
 
         logger.LogInformation(
-            "Kafka consumer started. Consumer: {Consumer}, TopicName: {TopicName}, GroupId: {GroupId}",
+            "Kafka consumer started. Consumer: {Consumer}, Topics: {Topics}, GroupId: {GroupId}",
             typeof(TConsumer).Name,
-            TopicName,
+            string.Join(", ", TopicNames),
             ConsumerGroupId);
 
         try
@@ -63,6 +63,10 @@ public abstract class KafkaConsumerBase<TConsumer>(
                 result.Message.Value,
                 cancellationToken);
 
+            // EXACTLY-ONCE BUSINESS EFFECT NOTE:
+            // This manual commit happens only after the handler returns successfully.
+            // Kafka delivery is still at-least-once; idempotent handlers, InboxMessage rows,
+            // unique constraints, and deterministic state transitions provide the business guarantee.
             consumer.Commit(result);
 
             logger.LogInformation(
@@ -90,6 +94,9 @@ public abstract class KafkaConsumerBase<TConsumer>(
 
             if (result is not null)
             {
+                // EXACTLY-ONCE BUSINESS EFFECT NOTE:
+                // Invalid messages are intentionally committed/skipped here.
+                // Add a Kafka DLQ or quarantine topic if operators need later replay/inspection.
                 consumer.Commit(result);
             }
         }
@@ -97,23 +104,22 @@ public abstract class KafkaConsumerBase<TConsumer>(
         {
             logger.LogError(
                 exception,
-                "Kafka consume failed. Consumer: {Consumer}, TopicName: {TopicName}",
+                "Kafka consume failed. Consumer: {Consumer}, Topics: {Topics}",
                 typeof(TConsumer).Name,
-                TopicName);
+                string.Join(", ", TopicNames));
         }
         catch (Exception exception)
         {
             logger.LogError(
                 exception,
-                "Kafka message processing failed. Consumer: {Consumer}, Topic: {Topic}, Partition: {Partition}, Offset: {Offset}, Key: {Key}",
+                "Kafka message processing failed. Consumer: {Consumer}, Topic: {Topic}, Partition: {Partition}, Offset: {Offset}, Key: {Key}. Consumer will stop to avoid committing past failed offset.",
                 typeof(TConsumer).Name,
                 result?.Topic,
                 result?.Partition.Value,
                 result?.Offset.Value,
                 result?.Message.Key);
 
-            // Không commit nếu business xử lý fail.
-            // Message sẽ được đọc lại theo consumer group offset.
+            throw;
         }
     }
 
@@ -152,7 +158,7 @@ public abstract class KafkaConsumerBase<TConsumer>(
             BootstrapServers = kafkaSettings.BootstrapServers,
             ClientId = kafkaSettings.ClientId,
             GroupId = ConsumerGroupId,
-            EnableAutoCommit = kafkaSettings.EnableAutoCommit,
+            EnableAutoCommit = false,
             AutoOffsetReset = ParseAutoOffsetReset(kafkaSettings.AutoOffsetReset),
             EnablePartitionEof = false
         };

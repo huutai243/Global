@@ -1,5 +1,12 @@
 ﻿namespace ECommerce.Infrastructure.Persistence.Inbox;
 
+// IDEMPOTENCY NOTE:
+// InboxMessages are durable duplicate-detection records for at-least-once consumers.
+// They help provide exactly-once business effect when paired with unique indexes and deterministic handlers.
+//
+// AUDIT NOTE:
+// InboxMessages provide integration trace, but not a full business audit trail.
+// A real audit trail should record actor, action, entity id, old value, new value, correlation id, and timestamp.
 public sealed class InboxMessage
 {
     public Guid Id { get; set; }

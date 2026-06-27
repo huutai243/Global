@@ -1,4 +1,5 @@
 using ECommerce.Infrastructure.Kafka.Publishing;
+using ECommerce.Shared.Messaging;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -11,6 +12,8 @@ public static class KafkaExtensions
         IConfiguration configuration)
     {
         services.Configure<KafkaSettings>(configuration.GetSection(KafkaSettings.SectionName));
+
+        services.AddSingleton<IMessageNameResolver, DefaultMessageNameResolver>();
         services.AddSingleton<IKafkaPublisher, KafkaPublisher>();
 
         return services;

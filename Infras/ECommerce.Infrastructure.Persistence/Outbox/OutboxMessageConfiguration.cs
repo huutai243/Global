@@ -47,6 +47,9 @@ public sealed class OutboxMessageConfiguration : IEntityTypeConfiguration<Outbox
         builder.Property(message => message.RowVersion)
             .IsRowVersion();
 
+        // IDEMPOTENCY NOTE:
+        // MessageId uniqueness prevents duplicate integration records in this store.
+        // Broker delivery can still be duplicated, so consumers must remain idempotent.
         builder.HasIndex(message => message.MessageId)
             .IsUnique();
 

@@ -20,66 +20,69 @@ public sealed class ProductCreatedEventHandler(
         string payload,
         CancellationToken cancellationToken)
     {
-        if (await IsProcessedAsync(metadata.MessageId, cancellationToken))
+        await using var transaction = await dbContext.Database.BeginTransactionAsync(cancellationToken);
+
+        try
         {
+            var exists = await dbContext.InventoryItems
+                .AnyAsync(
+                    item => item.ProductId == message.ProductId,
+                    cancellationToken);
+
+            if (!exists)
+            {
+                var inventoryItem = new InventoryItem
+                {
+                    Id = Guid.NewGuid(),
+                    ProductId = message.ProductId,
+                    AvailableQuantity = message.InitialStock,
+                    ReservedQuantity = 0,
+                    CreatedAtUtc = message.OccurredAtUtc
+                };
+
+                dbContext.InventoryItems.Add(inventoryItem);
+            }
+
+            dbContext.InboxMessages.Add(new InboxMessage
+            {
+                Id = Guid.NewGuid(),
+                MessageId = metadata.MessageId,
+                CorrelationId = metadata.CorrelationId,
+                CausationId = metadata.CausationId,
+                ConsumerName = ConsumerName,
+                MessageType = typeof(ProductCreatedEvent).FullName!,
+                Payload = payload,
+                Status = InboxMessageStatus.Processed,
+                ReceivedAtUtc = DateTime.UtcNow,
+                ProcessedAtUtc = DateTime.UtcNow
+            });
+
+            await dbContext.SaveChangesAsync(cancellationToken);
+            await transaction.CommitAsync(cancellationToken);
+
+            logger.LogInformation(
+                "Inventory item initialized for product. ProductId: {ProductId}, InitialStock: {InitialStock}, MessageId: {MessageId}",
+                message.ProductId,
+                message.InitialStock,
+                metadata.MessageId);
+        }
+        catch (DbUpdateException exception) when (IsDuplicateInboxMessage(exception))
+        {
+            await transaction.RollbackAsync(cancellationToken);
+
             logger.LogInformation(
                 "ProductCreatedEvent already processed. MessageId: {MessageId}, ProductId: {ProductId}",
                 metadata.MessageId,
                 message.ProductId);
-
-            return;
         }
-
-        await using var transaction = await dbContext.Database.BeginTransactionAsync(cancellationToken);
-
-        var exists = await dbContext.InventoryItems
-            .AnyAsync(
-                item => item.ProductId == message.ProductId,
-                cancellationToken);
-
-        if (!exists)
-        {
-            var inventoryItem = new InventoryItem
-            {
-                Id = Guid.NewGuid(),
-                ProductId = message.ProductId,
-                AvailableQuantity = message.InitialStock,
-                ReservedQuantity = 0,
-                CreatedAtUtc = message.OccurredAtUtc
-            };
-
-            dbContext.InventoryItems.Add(inventoryItem);
-        }
-
-        dbContext.InboxMessages.Add(new InboxMessage
-        {
-            Id = Guid.NewGuid(),
-            MessageId = metadata.MessageId,
-            ConsumerName = ConsumerName,
-            MessageType = typeof(ProductCreatedEvent).FullName!,
-            Payload = payload,
-            Status = InboxMessageStatus.Processed,
-            ReceivedAtUtc = DateTime.UtcNow,
-            ProcessedAtUtc = DateTime.UtcNow
-        });
-
-        await dbContext.SaveChangesAsync(cancellationToken);
-        await transaction.CommitAsync(cancellationToken);
-
-        logger.LogInformation(
-            "Inventory item initialized for product. ProductId: {ProductId}, InitialStock: {InitialStock}, MessageId: {MessageId}",
-            message.ProductId,
-            message.InitialStock,
-            metadata.MessageId);
     }
 
-    private async Task<bool> IsProcessedAsync(
-        string messageId,
-        CancellationToken cancellationToken)
+    private static bool IsDuplicateInboxMessage(DbUpdateException exception)
     {
-        return await dbContext.InboxMessages.AnyAsync(
-            message => message.MessageId == messageId
-                && message.ConsumerName == ConsumerName,
-            cancellationToken);
+        var message = exception.InnerException?.Message ?? exception.Message;
+
+        return message.Contains("IX_InboxMessages_MessageId_ConsumerName", StringComparison.OrdinalIgnoreCase)
+            || message.Contains("duplicate", StringComparison.OrdinalIgnoreCase)
+            || message.Contains("unique", StringComparison.OrdinalIgnoreCase);
     }
 }

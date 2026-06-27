@@ -16,6 +16,9 @@ public sealed class OutboxMessageFactory(IMessageNameResolver messageNameResolve
         DateTime occurredAtUtc)
         where TMessage : class
     {
+        // ENTERPRISE NOTE:
+        // MessageId/CorrelationId/CausationId provide integration traceability and idempotency inputs.
+        // They do not replace a full business audit trail or consumer-side duplicate protection.
         return new OutboxMessage
         {
             Id = Guid.NewGuid(),

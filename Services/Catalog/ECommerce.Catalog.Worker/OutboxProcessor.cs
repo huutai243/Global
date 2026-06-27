@@ -27,6 +27,9 @@ public sealed class OutboxProcessor(
         OutboxMessage message,
         CancellationToken cancellationToken)
     {
+        // EXACTLY-ONCE BUSINESS EFFECT NOTE:
+        // This RabbitMQ outbox publisher may publish the same message more than once on retry.
+        // Inventory's ProductCreated consumer must use inbox/idempotency protections.
         var productCreatedEventType = messageNameResolver.ResolveMessageName(typeof(ProductCreatedEvent));
 
         if (!string.Equals(message.MessageType, productCreatedEventType, StringComparison.Ordinal))

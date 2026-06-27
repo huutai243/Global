@@ -21,10 +21,11 @@ public sealed class InventoryReservationResultKafkaConsumer(
 {
     private readonly InventoryReservationResultKafkaConsumerOptions _options = options.Value;
 
-    protected override string TopicName => string.Join(
-        ",",
+    protected override IReadOnlyCollection<string> TopicNames =>
+    [
         _options.ReservedTopicName,
-        _options.FailedTopicName);
+        _options.FailedTopicName
+    ];
 
     protected override string ConsumerGroupId => _options.GroupId;
 
@@ -33,6 +34,9 @@ public sealed class InventoryReservationResultKafkaConsumer(
         string payload,
         CancellationToken cancellationToken)
     {
+        // EXACTLY-ONCE BUSINESS EFFECT NOTE:
+        // Kafka/Debezium may redeliver reservation results.
+        // Ordering must rely on InboxMessage, unique constraints, and deterministic status transitions before committing offsets.
         await using var scope = serviceScopeFactory.CreateAsyncScope();
 
         var handler = scope.ServiceProvider.GetRequiredService<InventoryReservationResultHandler>();

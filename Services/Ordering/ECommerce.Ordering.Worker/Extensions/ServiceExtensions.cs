@@ -92,7 +92,9 @@ public static class ServiceExtensions
 
     private static IServiceCollection AddBackgroundWorkers(this IServiceCollection services)
     {
-        // Core checkout CDC/Kafka flow.
+        // ENTERPRISE NOTE:
+        // Core checkout flow uses OutboxMessages + SQL Server CDC + Debezium + Kafka.
+        // Do not register the polling OutboxProcessor for this core path unless deliberately switching away from CDC.
         services.AddKafkaWorkers();
 
         // RabbitMQ legacy/polling flow.
@@ -111,6 +113,9 @@ public static class ServiceExtensions
 
     private static IServiceCollection AddRabbitMqWorkers(this IServiceCollection services)
     {
+        // ENTERPRISE NOTE:
+        // This legacy polling path can duplicate publishes after broker success but before status persistence.
+        // Consumers must remain idempotent if this group is enabled.
         // Polling outbox publisher: OrderingDb.OutboxMessages → RabbitMQ.
         services.AddHostedService<OutboxProcessor>();
 

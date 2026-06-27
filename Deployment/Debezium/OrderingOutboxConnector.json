@@ -1,0 +1,39 @@
+{
+  "name": "ordering-outbox-connector",
+  "config": {
+    "connector.class": "io.debezium.connector.sqlserver.SqlServerConnector",
+
+    "database.hostname": "host.docker.internal",
+    "database.port": "1433",
+    "database.user": "sa",
+    "database.password": "Taipham2403*#!@",
+    "database.names": "ECommerceOrderingDb",
+    "database.encrypt": "false",
+    "database.trustServerCertificate": "true",
+
+    "topic.prefix": "ordering",
+
+    "table.include.list": "ECommerceOrderingDb.dbo.OutboxMessages",
+
+    "schema.history.internal.kafka.bootstrap.servers": "ecommerce-kafka:29092",
+    "schema.history.internal.kafka.topic": "schema-history.ordering",
+
+    "include.schema.changes": "false",
+    "tombstones.on.delete": "false",
+    "snapshot.mode": "schema_only",
+
+    "transforms": "outbox",
+    "transforms.outbox.type": "io.debezium.transforms.outbox.EventRouter",
+
+    "transforms.outbox.table.field.event.id": "MessageId",
+    "transforms.outbox.table.field.event.key": "CorrelationId",
+    "transforms.outbox.table.field.event.type": "MessageType",
+    "transforms.outbox.table.field.event.payload": "Payload",
+    "transforms.outbox.table.expand.json.payload": "true",
+
+    "transforms.outbox.route.by.field": "MessageType",
+    "transforms.outbox.route.topic.replacement": "ordering.outbox.${routedByValue}",
+
+    "transforms.outbox.table.fields.additional.placement": "MessageId:header,CorrelationId:header,CausationId:header,OccurredAtUtc:header,MessageType:header"
+  }
+}

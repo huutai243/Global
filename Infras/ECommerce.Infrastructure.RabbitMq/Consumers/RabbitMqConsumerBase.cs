@@ -8,6 +8,15 @@ using RabbitMQ.Client.Events;
 
 namespace ECommerce.Infrastructure.RabbitMq.Consumers;
 
+/// <summary>
+/// Base consumer dùng để consume message từ RabbitMQ queue theo cơ chế at-least-once delivery.
+/// </summary>
+/// <remarks>
+/// RabbitMQ không đảm bảo exactly-once delivery ở tầng kỹ thuật.
+/// Message có thể bị deliver lại nếu consumer xử lý xong business nhưng chưa kịp ack, hoặc connection bị lỗi.
+/// Vì vậy các handler kế thừa class này phải xử lý idempotent bằng InboxMessage, unique constraint,
+/// hoặc state transition có kiểm soát để đạt exactly-once business effect.
+/// </remarks>
 public abstract class RabbitMqConsumerBase<TConsumer>(
     RabbitMqSettings rabbitMqSettings,
     ILogger<TConsumer> logger)
@@ -27,6 +36,9 @@ public abstract class RabbitMqConsumerBase<TConsumer>(
 
     protected abstract int RetryDelaySeconds { get; }
 
+    /// <summary>
+    /// Khởi tạo RabbitMQ connection, declare topology, cấu hình QoS và bắt đầu consume message.
+    /// </summary>
     protected override Task ExecuteAsync(CancellationToken stoppingToken)
     {
         _stoppingToken = stoppingToken;
@@ -69,12 +81,16 @@ public abstract class RabbitMqConsumerBase<TConsumer>(
         return Task.CompletedTask;
     }
 
+    /// <summary>
+    /// Cấu hình số lượng message tối đa mà consumer nhận trước khi ack.
+    /// </summary>
+    /// <remarks>
+    /// PrefetchCount giúp tránh việc một consumer nhận quá nhiều message cùng lúc,
+    /// đồng thời giới hạn mức độ song song và áp lực lên database / handler.
+    /// </remarks>
     private void ConfigureQos(IModel channel)
     {
-        channel.BasicQos(
-            prefetchSize: 0,
-            prefetchCount: PrefetchCount,
-            global: false);
+        channel.BasicQos(prefetchSize: 0, prefetchCount: PrefetchCount, global: false);
     }
 
     private void StartConsuming(IModel channel)
@@ -82,12 +98,18 @@ public abstract class RabbitMqConsumerBase<TConsumer>(
         var consumer = new AsyncEventingBasicConsumer(channel);
         consumer.Received += ProcessMessageAsync;
 
-        channel.BasicConsume(
-            queue: QueueName,
-            autoAck: false,
-            consumer: consumer);
+        channel.BasicConsume(queue: QueueName, autoAck: false, consumer: consumer);
     }
 
+    /// <summary>
+    /// Xử lý một RabbitMQ message, ack sau khi handler xử lý thành công,
+    /// hoặc đẩy message sang retry / dead-letter flow khi xử lý lỗi.
+    /// </summary>
+    /// <remarks>
+    /// Ack chỉ được gọi sau khi business handler hoàn tất.
+    /// Nếu handler lỗi, message sẽ được retry hoặc đưa vào dead-letter queue tùy số lần retry.
+    /// Invalid message được đưa thẳng vào dead-letter queue vì retry lại cũng không xử lý được.
+    /// </remarks>
     private async Task ProcessMessageAsync(object sender, BasicDeliverEventArgs args)
     {
         var channel = _channel;
@@ -108,16 +130,11 @@ public abstract class RabbitMqConsumerBase<TConsumer>(
         {
             await HandleMessageAsync(args, payload, _stoppingToken);
 
-            channel.BasicAck(
-                deliveryTag: args.DeliveryTag,
-                multiple: false);
+            channel.BasicAck(deliveryTag: args.DeliveryTag, multiple: false);
         }
         catch (OperationCanceledException) when (_stoppingToken.IsCancellationRequested)
         {
-            channel.BasicNack(
-                deliveryTag: args.DeliveryTag,
-                multiple: false,
-                requeue: true);
+            channel.BasicNack(deliveryTag: args.DeliveryTag, multiple: false, requeue: true);
         }
         catch (InvalidRabbitMqMessageException exception)
         {
@@ -148,6 +165,9 @@ public abstract class RabbitMqConsumerBase<TConsumer>(
                 args.BasicProperties.MessageId,
                 args.BasicProperties.CorrelationId);
 
+            // TODO:
+            // Theo dõi retry queue / dead-letter queue để phát hiện poison message.
+            // Cần bổ sung reconciliation hoặc operator tooling để replay, quarantine hoặc xử lý thủ công.
             RabbitMqConsumerFailureHandler.RetryOrDeadLetter(
                 channel,
                 args,
@@ -158,11 +178,26 @@ public abstract class RabbitMqConsumerBase<TConsumer>(
         }
     }
 
+    /// <summary>
+    /// Xử lý business logic cho message đã consume từ RabbitMQ.
+    /// </summary>
+    /// <remarks>
+    /// Method này phải được implement theo hướng idempotent.
+    /// RabbitMQ có thể deliver cùng một message nhiều hơn một lần.
+    /// Không được giả định rằng mỗi message chỉ được xử lý đúng một lần ở tầng kỹ thuật.
+    /// </remarks>
     protected abstract Task HandleMessageAsync(
         BasicDeliverEventArgs args,
         string payload,
         CancellationToken cancellationToken);
 
+    /// <summary>
+    /// Deserialize payload và chuyển lỗi deserialize thành invalid message exception.
+    /// </summary>
+    /// <remarks>
+    /// Invalid payload thường là lỗi format hoặc contract mismatch.
+    /// Những message này nên được đưa vào dead-letter queue thay vì retry vô hạn.
+    /// </remarks>
     protected static TMessage DeserializePayloadRequired<TMessage>(
         IJsonHelper jsonHelper,
         string payload,
@@ -186,6 +221,9 @@ public abstract class RabbitMqConsumerBase<TConsumer>(
         return new InvalidRabbitMqMessageException(message);
     }
 
+    /// <summary>
+    /// Đóng RabbitMQ channel và connection khi worker dừng.
+    /// </summary>
     public override Task StopAsync(CancellationToken cancellationToken)
     {
         _channel?.Close();
@@ -197,5 +235,12 @@ public abstract class RabbitMqConsumerBase<TConsumer>(
         return base.StopAsync(cancellationToken);
     }
 
+    /// <summary>
+    /// Exception dùng cho message không hợp lệ về format, payload hoặc contract.
+    /// </summary>
+    /// <remarks>
+    /// Invalid message không nên retry nhiều lần vì thường không thể tự hồi phục.
+    /// Message sẽ được đưa vào dead-letter queue để kiểm tra sau.
+    /// </remarks>
     public sealed class InvalidRabbitMqMessageException(string message) : Exception(message);
 }

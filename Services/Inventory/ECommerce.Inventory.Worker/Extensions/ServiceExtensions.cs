@@ -91,10 +91,12 @@ public static class ServiceExtensions
 
     private static IServiceCollection AddBackgroundWorkers(this IServiceCollection services)
     {
-        // Core checkout CDC/Kafka flow.
+        // ENTERPRISE NOTE:
+        // Core checkout flow consumes ReserveInventoryCommand from Kafka, produced by Debezium from Ordering outbox.
+        // Inventory writes its result OutboxMessage for CDC/Debezium instead of registering the polling outbox processor.
         services.AddKafkaWorkers();
 
-        // RabbitMQ flow. Enable this when using RabbitMQ for Inventory flows.
+        // RabbitMQ flow remains for non-core/legacy integrations such as Catalog to Inventory product sync.
         services.AddRabbitMqWorkers();
 
         return services;
@@ -117,7 +119,7 @@ public static class ServiceExtensions
         // services.AddHostedService<ReserveInventoryConsumer>();
 
         // Polling outbox publisher.
-        // Enable this only when Inventory publishes reply via RabbitMQ/OutboxProcessor.
+        // Enable this only when Inventory publishes reply via RabbitMQ/OutboxProcessor instead of CDC/Debezium.
         // services.AddHostedService<OutboxProcessor>();
 
         return services;

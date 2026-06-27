@@ -43,6 +43,8 @@ public sealed class InboxMessageConfiguration : IEntityTypeConfiguration<InboxMe
         builder.Property(message => message.RowVersion)
             .IsRowVersion();
 
+        // IDEMPOTENCY NOTE:
+        // MessageId + ConsumerName is the durable duplicate-detection key for at-least-once delivery.
         builder.HasIndex(message => new
         {
             message.MessageId,

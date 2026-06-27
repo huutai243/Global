@@ -21,7 +21,7 @@ public sealed class ReserveInventoryKafkaConsumer(
 {
     private readonly ReserveInventoryKafkaConsumerOptions _options = options.Value;
 
-    protected override string TopicName => _options.TopicName;
+    protected override IReadOnlyCollection<string> TopicNames => [_options.TopicName];
 
     protected override string ConsumerGroupId => _options.GroupId;
 
@@ -30,6 +30,9 @@ public sealed class ReserveInventoryKafkaConsumer(
         string payload,
         CancellationToken cancellationToken)
     {
+        // EXACTLY-ONCE BUSINESS EFFECT NOTE:
+        // Kafka/Debezium should be treated as at-least-once delivery.
+        // ReserveInventoryCommandHandler must enforce idempotency before KafkaConsumerBase commits the offset.
         ValidateMessageType(result);
 
         var command = DeserializePayloadRequired<ReserveInventoryCommand>(

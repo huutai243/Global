@@ -1,4 +1,4 @@
-using System.Text;
+﻿using System.Text;
 using System.Text.Json;
 using ECommerce.Infrastructure.RabbitMq.Configuration;
 using ECommerce.Shared.Core.Interfaces;
@@ -10,6 +10,17 @@ using RabbitMQ.Client.Events;
 
 namespace ECommerce.Infrastructure.RabbitMq.Publishing;
 
+/// <summary>
+/// Publisher dùng để publish message sang RabbitMQ exchange.
+/// </summary>
+/// <remarks>
+/// Publisher này dùng durable direct exchange, persistent message, mandatory publish và publisher confirm
+/// để giảm rủi ro mất message ở tầng broker.
+///
+/// Lưu ý enterprise:
+/// Publisher confirm chỉ xác nhận RabbitMQ broker đã nhận message, không có nghĩa downstream consumer đã xử lý thành công.
+/// Vì vậy consumer vẫn phải idempotent và hệ thống vẫn cần retry / DLQ / reconciliation ở các flow quan trọng.
+/// </remarks>
 public sealed class RabbitMqPublisher(
     IOptions<RabbitMqSettings> options,
     IMessageNameResolver messageNameResolver,
@@ -22,6 +33,16 @@ public sealed class RabbitMqPublisher(
     private IConnection? _connection;
     private bool _disposed;
 
+    /// <summary>
+    /// Publish raw payload sang RabbitMQ bằng routing key đã được truyền vào.
+    /// </summary>
+    /// <remarks>
+    /// Overload này thường dùng cho polling OutboxProcessor hoặc legacy flow,
+    /// khi payload đã được serialize sẵn trong OutboxMessage.
+    ///
+    /// Nếu không truyền MessageId / CorrelationId / CausationId,
+    /// consumer sẽ thiếu metadata để trace và deduplicate chính xác.
+    /// </remarks>
     public Task PublishAsync(
         string eventType,
         string payload,
@@ -38,6 +59,15 @@ public sealed class RabbitMqPublisher(
         return Task.CompletedTask;
     }
 
+    /// <summary>
+    /// Serialize message và publish sang RabbitMQ với metadata đầy đủ.
+    /// </summary>
+    /// <remarks>
+    /// Routing key được resolve từ message type để consumer bind đúng event/command cần xử lý.
+    ///
+    /// MessageMetadata chứa MessageId, CorrelationId và CausationId.
+    /// Đây là các metadata quan trọng cho tracing, idempotency và exactly-once business effect.
+    /// </remarks>
     public Task PublishAsync<TMessage>(
         TMessage message,
         MessageMetadata metadata,
@@ -61,6 +91,20 @@ public sealed class RabbitMqPublisher(
         return Task.CompletedTask;
     }
 
+    /// <summary>
+    /// Publish message sang RabbitMQ và chờ publisher confirm.
+    /// </summary>
+    /// <remarks>
+    /// Method này dùng mandatory publish để phát hiện message không route được tới queue nào.
+    /// Sau khi publish, publisher chờ broker confirm trong một khoảng timeout.
+    ///
+    /// Nếu publish không được confirm hoặc message bị return vì unroutable,
+    /// exception sẽ được throw để caller có thể retry hoặc đánh dấu OutboxMessage là Failed.
+    ///
+    /// Lưu ý:
+    /// Publish thành công không đồng nghĩa với business flow đã hoàn tất.
+    /// Nó chỉ xác nhận message đã được RabbitMQ nhận và route hợp lệ.
+    /// </remarks>
     private void PublishRaw(
         string routingKey,
         string payload,
@@ -134,6 +178,15 @@ public sealed class RabbitMqPublisher(
         }
     }
 
+    /// <summary>
+    /// Lấy connection hiện tại hoặc tạo connection mới nếu chưa có / đã đóng.
+    /// </summary>
+    /// <remarks>
+    /// Publisher giữ lại một connection dùng chung để tránh tạo TCP connection mới cho mỗi lần publish.
+    /// Mỗi lần publish vẫn tạo channel riêng vì channel là đơn vị làm việc nhẹ hơn connection.
+    ///
+    /// Lock được dùng để tránh nhiều thread cùng lúc tạo nhiều connection mới.
+    /// </remarks>
     private IConnection GetOrCreateConnection(RabbitMqSettings settings)
     {
         if (_connection?.IsOpen == true)
@@ -173,6 +226,13 @@ public sealed class RabbitMqPublisher(
         }
     }
 
+    /// <summary>
+    /// Khai báo RabbitMQ exchange dùng để publish message.
+    /// </summary>
+    /// <remarks>
+    /// Exchange được khai báo durable để tồn tại sau khi RabbitMQ restart.
+    /// Direct exchange route message dựa trên routing key.
+    /// </remarks>
     private static void DeclareExchange(IModel channel, string exchangeName)
     {
         channel.ExchangeDeclare(
@@ -182,6 +242,16 @@ public sealed class RabbitMqPublisher(
             autoDelete: false);
     }
 
+    /// <summary>
+    /// Tạo RabbitMQ message properties trước khi publish.
+    /// </summary>
+    /// <remarks>
+    /// Persistent message giúp RabbitMQ lưu message bền hơn khi queue/exchange durable.
+    ///
+    /// MessageId dùng cho idempotency / InboxMessage.
+    /// CorrelationId dùng để trace toàn bộ business flow.
+    /// CausationId dùng để biết message hiện tại được sinh ra từ message hoặc command nào trước đó.
+    /// </remarks>
     private static IBasicProperties CreateProperties(
         IModel channel,
         string? messageId,
@@ -204,11 +274,21 @@ public sealed class RabbitMqPublisher(
         return properties;
     }
 
+    /// <summary>
+    /// Chặn publish sau khi publisher đã bị dispose.
+    /// </summary>
     private void ThrowIfDisposed()
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
     }
 
+    /// <summary>
+    /// Đóng RabbitMQ connection khi publisher bị dispose.
+    /// </summary>
+    /// <remarks>
+    /// Lỗi shutdown trong Dispose được bỏ qua vì đây là cleanup path.
+    /// Không nên làm fail application shutdown chỉ vì connection đã đóng hoặc broker không còn reachable.
+    /// </remarks>
     public void Dispose()
     {
         if (_disposed)
@@ -224,7 +304,7 @@ public sealed class RabbitMqPublisher(
         }
         catch
         {
-            // Ignore shutdown errors during dispose.
+            // Bỏ qua lỗi shutdown trong quá trình dispose.
         }
 
         _connection?.Dispose();

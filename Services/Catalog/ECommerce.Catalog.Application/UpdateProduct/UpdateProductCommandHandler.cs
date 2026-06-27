@@ -24,6 +24,9 @@ public sealed class UpdateProductCommandHandler(CatalogDbContext dbContext, IPro
             throw new BusinessRuleException("Product must belong to an active category.");
         }
 
+        // AUDIT NOTE:
+        // Product updates are administrative business actions, but this handler only persists current state.
+        // A real audit trail should record actor, action, entity id, old value, new value, correlation id, and timestamp.
         product.CategoryId = request.CategoryId;
         product.Name = request.Name.Trim();
         product.Description = request.Description;

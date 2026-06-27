@@ -31,6 +31,9 @@ public sealed class ReserveInventoryConsumer(
 
     protected override async Task HandleMessageAsync(BasicDeliverEventArgs args, string payload, CancellationToken cancellationToken)
     {
+        // EXACTLY-ONCE BUSINESS EFFECT NOTE:
+        // This RabbitMQ reserve-inventory path is legacy/non-core while CDC/Kafka is active.
+        // If enabled, it still requires the same idempotent handler, InboxMessage, and StockReservation uniqueness.
         var command = DeserializePayloadRequired<ReserveInventoryCommand>(jsonHelper, payload, nameof(ReserveInventoryCommand));
 
         await using var scope = serviceScopeFactory.CreateAsyncScope();

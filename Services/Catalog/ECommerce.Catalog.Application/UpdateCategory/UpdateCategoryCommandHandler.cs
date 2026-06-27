@@ -22,37 +22,52 @@ public sealed class UpdateCategoryCommandHandler(
                 cancellationToken)
             ?? throw new NotFoundException("Category was not found.");
 
-        if (request.Image is not null)
+        string? uploadedBlobName = null;
+
+        try
         {
-            var uploadRequest = new FileUploadRequest
+            if (request.Image is not null)
             {
-                Content = request.Image.Content,
-                FileName = request.Image.FileName,
-                ContentType = request.Image.ContentType,
-                FolderPath = "categories"
+                var uploadRequest = new FileUploadRequest
+                {
+                    Content = request.Image.Content,
+                    FileName = request.Image.FileName,
+                    ContentType = request.Image.ContentType,
+                    FolderPath = "categories"
+                };
+
+                var uploadResult = await blobStorageService.UploadAsync(
+                    uploadRequest,
+                    cancellationToken);
+
+                category.ImageUrl = uploadResult.Url;
+                uploadedBlobName = uploadResult.BlobName;
+            }
+
+            category.Name = request.Name.Trim();
+            category.Description = request.Description;
+            category.IsActive = request.IsActive;
+            category.UpdatedAt = DateTime.UtcNow;
+
+            await dbContext.SaveChangesAsync(cancellationToken);
+
+            return new CategoryResponse
+            {
+                Id = category.Id,
+                Name = category.Name,
+                Description = category.Description,
+                IsActive = category.IsActive,
+                ImageUrl = category.ImageUrl
             };
-
-            var uploadResult = await blobStorageService.UploadAsync(
-                uploadRequest,
-                cancellationToken);
-
-            category.ImageUrl = uploadResult.Url;
         }
-
-        category.Name = request.Name.Trim();
-        category.Description = request.Description;
-        category.IsActive = request.IsActive;
-        category.UpdatedAt = DateTime.UtcNow;
-
-        await dbContext.SaveChangesAsync(cancellationToken);
-
-        return new CategoryResponse
+        catch
         {
-            Id = category.Id,
-            Name = category.Name,
-            Description = category.Description,
-            IsActive = category.IsActive,
-            ImageUrl = category.ImageUrl
-        };
+            if (!string.IsNullOrWhiteSpace(uploadedBlobName))
+            {
+                await blobStorageService.DeleteAsync(uploadedBlobName, CancellationToken.None);
+            }
+
+            throw;
+        }
     }
 }

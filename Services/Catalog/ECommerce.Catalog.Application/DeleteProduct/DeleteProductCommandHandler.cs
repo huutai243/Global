@@ -16,6 +16,9 @@ public sealed class DeleteProductCommandHandler(CatalogDbContext dbContext, IPro
         var product = await dbContext.Products.FirstOrDefaultAsync(item => item.Id == request.ProductId, cancellationToken)
             ?? throw new NotFoundException("Product was not found.");
 
+        // AUDIT NOTE:
+        // Product deactivation is an administrative business action, but this handler only persists current state.
+        // A real audit trail should record actor, action, entity id, old value, new value, correlation id, and timestamp.
         product.Status = ProductStatus.Inactive;
         product.UpdatedAt = DateTime.UtcNow;
 

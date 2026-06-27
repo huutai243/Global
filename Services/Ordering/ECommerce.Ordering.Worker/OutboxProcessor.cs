@@ -27,6 +27,9 @@ public sealed class OutboxProcessor(
         OutboxMessage message,
         CancellationToken cancellationToken)
     {
+        // ENTERPRISE NOTE:
+        // This processor is the legacy RabbitMQ path. The core checkout path should use CDC/Debezium/Kafka
+        // so committed Ordering outbox rows are streamed without registering this hosted service.
         var reserveInventoryCommandType = messageNameResolver.ResolveMessageName(typeof(ReserveInventoryCommand));
 
         if (!string.Equals(message.MessageType, reserveInventoryCommandType, StringComparison.Ordinal))

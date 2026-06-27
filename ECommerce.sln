@@ -146,6 +146,20 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution 
 		docker-compose.yml = docker-compose.yml
 	EndProjectSection
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Deployment", "Deployment", "{3E706CB8-F2C6-47F5-8818-F67C4E0C8BFA}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Cdc", "Cdc", "{FBCEB85F-79BB-424D-B59A-4BBB9866AB13}"
+	ProjectSection(SolutionItems) = preProject
+		EnableInventoryOutboxCdc.sql = EnableInventoryOutboxCdc.sql
+		EnableOrderingOutboxCdc.sql = EnableOrderingOutboxCdc.sql
+	EndProjectSection
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Debezium", "Debezium", "{7A00AE9E-F5FF-4DB5-8EB3-2DD73ACACEF8}"
+	ProjectSection(SolutionItems) = preProject
+		InventoryOutboxConnector.json = InventoryOutboxConnector.json
+		OrderingOutboxConnector.json = OrderingOutboxConnector.json
+	EndProjectSection
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -445,6 +459,8 @@ Global
 		{431D8075-4847-457E-A99D-E4B8D06E6F28} = {2C1B720C-9A8B-4800-8A63-592B327695C6}
 		{97E13237-A108-4257-9CA8-EB184992FDA1} = {2C1B720C-9A8B-4800-8A63-592B327695C6}
 		{6C6094EB-C87E-44EB-AD7C-C5BCCB17257F} = {2C1B720C-9A8B-4800-8A63-592B327695C6}
+		{FBCEB85F-79BB-424D-B59A-4BBB9866AB13} = {3E706CB8-F2C6-47F5-8818-F67C4E0C8BFA}
+		{7A00AE9E-F5FF-4DB5-8EB3-2DD73ACACEF8} = {3E706CB8-F2C6-47F5-8818-F67C4E0C8BFA}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {E90E85C6-DE66-49EA-8A3A-B498E383631E}

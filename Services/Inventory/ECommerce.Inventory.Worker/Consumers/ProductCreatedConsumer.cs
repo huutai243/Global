@@ -31,6 +31,9 @@ public sealed class ProductCreatedConsumer(
 
     protected override async Task HandleMessageAsync(BasicDeliverEventArgs args, string payload, CancellationToken cancellationToken)
     {
+        // EXACTLY-ONCE BUSINESS EFFECT NOTE:
+        // RabbitMQ should be treated as at-least-once delivery.
+        // The handler must enforce idempotency with InboxMessage and product uniqueness before this consumer acks.
         var message = DeserializePayloadRequired<ProductCreatedEvent>(jsonHelper, payload, nameof(ProductCreatedEvent));
 
         await using var scope = serviceScopeFactory.CreateAsyncScope();

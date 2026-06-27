@@ -60,6 +60,9 @@ public sealed class ReserveInventoryCommandHandler(
         string payload,
         CancellationToken cancellationToken)
     {
+        // IDEMPOTENCY NOTE:
+        // Delivery is at-least-once. This handler must be safe to execute more than once.
+        // InboxMessage and StockReservation.OrderId uniqueness provide exactly-once business effect.
         if (await IsProcessedAsync(metadata.MessageId, cancellationToken))
         {
             logger.LogInformation(
@@ -70,6 +73,9 @@ public sealed class ReserveInventoryCommandHandler(
             return;
         }
 
+        // ENTERPRISE NOTE:
+        // Inventory reservation is strongly consistent only within InventoryDb.
+        // Ordering observes the result later through Outbox + CDC + Kafka, so cross-service consistency is eventual.
         await using var transaction = await dbContext.Database.BeginTransactionAsync(cancellationToken);
 
         try
@@ -79,6 +85,9 @@ public sealed class ReserveInventoryCommandHandler(
 
             if (await HasReservationAsync(command.OrderId, cancellationToken))
             {
+                // EXACTLY-ONCE BUSINESS EFFECT NOTE:
+                // A duplicate ReserveInventoryCommand must not decrement stock twice.
+                // The existing reservation is the business idempotency record for this order.
                 MarkInboxProcessed(inboxMessage);
 
                 await dbContext.SaveChangesAsync(cancellationToken);
@@ -106,6 +115,10 @@ public sealed class ReserveInventoryCommandHandler(
 
             MarkInboxProcessed(inboxMessage);
 
+            // ACID NOTE:
+            // This SaveChanges/transaction must include inventory quantities, StockReservation,
+            // InboxMessage, and OutboxMessage. Otherwise Inventory could reserve stock without
+            // publishing a reservation result, or publish a result without durable stock state.
             await dbContext.SaveChangesAsync(cancellationToken);
             await transaction.CommitAsync(cancellationToken);
 
@@ -221,6 +234,9 @@ public sealed class ReserveInventoryCommandHandler(
         {
             var inventoryItem = inventoryItems[item.ProductId];
 
+            // STRONG CONSISTENCY NOTE:
+            // These quantity changes rely on the InventoryItem row version and the enclosing transaction.
+            // Concurrent reservations must retry or fail rather than silently overselling stock.
             inventoryItem.AvailableQuantity -= item.Quantity;
             inventoryItem.ReservedQuantity += item.Quantity;
             inventoryItem.UpdatedAtUtc = utcNow;
@@ -241,6 +257,9 @@ public sealed class ReserveInventoryCommandHandler(
             utcNow);
 
         dbContext.StockReservations.Add(reservation);
+        // ACID NOTE:
+        // The reservation result event must be stored in the same transaction as the stock reservation.
+        // CDC/Debezium publishes only after the database commit is visible.
         dbContext.OutboxMessages.Add(CreateOutboxMessage(@event, metadata, utcNow));
     }
 
@@ -265,6 +284,9 @@ public sealed class ReserveInventoryCommandHandler(
             utcNow);
 
         dbContext.StockReservations.Add(reservation);
+        // ACID NOTE:
+        // Failure results also need an outbox message in the same transaction so Ordering can leave
+        // PendingInventoryReservation deterministically.
         dbContext.OutboxMessages.Add(CreateOutboxMessage(@event, metadata, utcNow));
     }
 

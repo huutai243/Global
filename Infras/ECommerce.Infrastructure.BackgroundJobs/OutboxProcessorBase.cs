@@ -17,6 +17,9 @@ public abstract class OutboxProcessorBase<TProcessor, TDbContext, TOptions>(
     where TDbContext : DbContext
     where TOptions : class, IOutboxProcessorOptions
 {
+    // ENTERPRISE NOTE:
+    // This polling outbox processor is retained for RabbitMQ/legacy flows.
+    // In the core checkout flow, Debezium reads committed OutboxMessages through SQL Server CDC and publishes to Kafka.
     private readonly TOptions _options = options.Value;
 
     protected abstract string ProcessorName { get; }
@@ -175,6 +178,9 @@ public abstract class OutboxProcessorBase<TProcessor, TDbContext, TOptions>(
                 message,
                 cancellationToken);
 
+            // EXACTLY-ONCE BUSINESS EFFECT NOTE:
+            // A broker publish can succeed and this status update can still fail.
+            // Downstream consumers must be idempotent because polling outbox can publish the same message again.
             message.Status = OutboxMessageStatus.Processed;
             message.ProcessedAtUtc = DateTime.UtcNow;
             message.NextRetryAtUtc = null;
@@ -228,6 +234,9 @@ public abstract class OutboxProcessorBase<TProcessor, TDbContext, TOptions>(
 
         if (message.RetryCount >= maxRetryCount)
         {
+            // TODO RECONCILIATION:
+            // Dead-lettered outbox messages need operator visibility and replay/escalation tooling.
+            // Otherwise business state can remain committed without downstream services observing the event.
             message.Status = OutboxMessageStatus.DeadLettered;
             message.DeadLetteredAtUtc = DateTime.UtcNow;
             message.NextRetryAtUtc = null;

@@ -1,5 +1,11 @@
 namespace ECommerce.Shared.Outbox;
 
+// AUDIT NOTE:
+// OutboxMessages provide integration trace, but not a full business audit trail.
+// A real audit trail should record actor, action, entity id, old value, new value, correlation id, and timestamp.
+//
+// TODO RECONCILIATION:
+// Monitor Pending/Failed/Processing/DeadLettered messages so committed business state is not stranded.
 public sealed class OutboxMessage
 {
     public Guid Id { get; set; }
