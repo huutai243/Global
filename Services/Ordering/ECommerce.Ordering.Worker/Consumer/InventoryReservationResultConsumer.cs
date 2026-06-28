@@ -2,7 +2,7 @@
 using ECommerce.Infrastructure.RabbitMq.Consumers;
 using ECommerce.Ordering.Application.InventoryReservation;
 using ECommerce.Ordering.Worker.Options;
-using ECommerce.Shared.Contracts;
+using ECommerce.Shared.Contracts.Inventory;
 using ECommerce.Shared.Core.Interfaces;
 using Microsoft.Extensions.Options;
 using RabbitMQ.Client.Events;

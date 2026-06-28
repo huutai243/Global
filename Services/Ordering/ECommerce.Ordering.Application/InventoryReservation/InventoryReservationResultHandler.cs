@@ -1,6 +1,6 @@
 ﻿using ECommerce.Ordering.Domain.Models;
 using ECommerce.Ordering.Infrastructure.Persistence;
-using ECommerce.Shared.Contracts;
+using ECommerce.Shared.Contracts.Inventory;
 using ECommerce.Shared.Inbox;
 using ECommerce.Shared.Messaging;
 using Microsoft.Data.SqlClient;

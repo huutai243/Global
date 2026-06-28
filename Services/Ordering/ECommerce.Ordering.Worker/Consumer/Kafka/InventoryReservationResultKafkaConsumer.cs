@@ -3,7 +3,7 @@ using ECommerce.Infrastructure.Kafka.Configuration;
 using ECommerce.Infrastructure.Kafka.Consumers;
 using ECommerce.Ordering.Application.InventoryReservation;
 using ECommerce.Ordering.Worker.Options;
-using ECommerce.Shared.Contracts;
+using ECommerce.Shared.Contracts.Inventory;
 using ECommerce.Shared.Core.Interfaces;
 using ECommerce.Shared.Messaging;
 using Microsoft.Extensions.Options;

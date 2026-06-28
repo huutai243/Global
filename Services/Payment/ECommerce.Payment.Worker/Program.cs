@@ -1,9 +1,9 @@
-using ECommerce.Payment.Infrastructure;
-using ECommerce.Payment.Worker;
+using ECommerce.Payment.Worker.Extensions;
 
 var builder = Host.CreateApplicationBuilder(args);
-builder.Services.AddPaymentInfrastructure(builder.Configuration);
-builder.Services.AddHostedService<Worker>();
+
+builder.Services.AddPaymentWorkerServices(builder.Configuration);
 
 var host = builder.Build();
+
 host.Run();

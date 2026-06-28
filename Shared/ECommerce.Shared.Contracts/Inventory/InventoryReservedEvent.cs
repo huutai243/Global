@@ -1,4 +1,4 @@
-﻿namespace ECommerce.Shared.Contracts;
+﻿namespace ECommerce.Shared.Contracts.Inventory;
 
 public sealed record InventoryReservedEvent(
     Guid OrderId,

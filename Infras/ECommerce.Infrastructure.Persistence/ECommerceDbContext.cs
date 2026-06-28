@@ -33,8 +33,6 @@ public class ECommerceDbContext(DbContextOptions<ECommerceDbContext> options) : 
 
     public DbSet<OrderItem> OrderItems => Set<OrderItem>();
 
-    public DbSet<ECommerce.Payment.Domain.Models.Payment> Payments => Set<ECommerce.Payment.Domain.Models.Payment>();
-
     public DbSet<OutboxMessage> OutboxMessages => Set<OutboxMessage>();
 
     public DbSet<IdempotencyRecord> IdempotencyRecords => Set<IdempotencyRecord>();

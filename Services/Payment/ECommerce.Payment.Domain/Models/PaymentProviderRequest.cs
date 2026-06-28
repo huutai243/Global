@@ -1,3 +1,9 @@
 namespace ECommerce.Payment.Domain.Models;
 
-public sealed record PaymentProviderRequest(Guid OrderId, decimal Amount, string Currency, string PaymentMethod);
+public sealed record PaymentProviderRequest(
+    Guid OrderId,
+    Guid CustomerId,
+    decimal Amount,
+    string Currency,
+    string IdempotencyKey,
+    string PaymentMethod);

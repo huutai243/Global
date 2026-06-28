@@ -1,7 +1,7 @@
 ﻿using ECommerce.Infrastructure.BackgroundJobs;
 using ECommerce.Inventory.Infrastructure.Persistence;
 using ECommerce.Inventory.Worker.Options;
-using ECommerce.Shared.Contracts;
+using ECommerce.Shared.Contracts.Inventory;
 using ECommerce.Shared.Core.Interfaces;
 using ECommerce.Shared.Messaging;
 using ECommerce.Shared.Outbox;

@@ -1,6 +1,7 @@
 ﻿using ECommerce.Inventory.Domain.Models;
 using ECommerce.Inventory.Infrastructure.Persistence;
 using ECommerce.Shared.Contracts;
+using ECommerce.Shared.Contracts.Inventory;
 using ECommerce.Shared.Inbox;
 using ECommerce.Shared.Messaging;
 using ECommerce.Shared.Outbox;

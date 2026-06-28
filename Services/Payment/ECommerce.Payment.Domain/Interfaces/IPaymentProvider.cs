@@ -2,7 +2,11 @@ using ECommerce.Payment.Domain.Models;
 
 namespace ECommerce.Payment.Domain.Interfaces;
 
-public interface IPaymentProvider
+public interface IPaymentGateway
 {
-    Task<PaymentProviderResult> PayAsync(PaymentProviderRequest request, CancellationToken cancellationToken = default);
+    string ProviderName { get; }
+
+    Task<PaymentProviderResult> CreatePaymentSessionAsync(
+        PaymentProviderRequest request,
+        CancellationToken cancellationToken = default);
 }
