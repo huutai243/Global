@@ -107,6 +107,7 @@ public static class ServiceExtensions
     private static IServiceCollection AddKafkaWorkers(this IServiceCollection services)
     {
         services.AddHostedService<InventoryReservationResultKafkaConsumer>();
+        services.AddHostedService<PaymentResultKafkaConsumer>();
 
         return services;
     }
