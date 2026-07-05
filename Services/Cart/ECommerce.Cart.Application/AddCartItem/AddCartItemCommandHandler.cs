@@ -5,6 +5,7 @@ using ECommerce.Cart.Infrastructure.Persistence;
 using ECommerce.Shared.Core.Exceptions;
 using ECommerce.Shared.Core.Interfaces;
 using MediatR;
+using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 
@@ -17,6 +18,10 @@ public sealed class AddCartItemCommandHandler(
     ILogger<AddCartItemCommandHandler> logger)
     : IRequestHandler<AddCartItemCommand, CartResponse>
 {
+    private const int MaxRetries = 3;
+    private const int SqlUniqueConstraintViolation = 2627;
+    private const int SqlUniqueIndexViolation = 2601;
+
     public async Task<CartResponse> Handle(
         AddCartItemCommand request,
         CancellationToken cancellationToken)
@@ -29,20 +34,59 @@ public sealed class AddCartItemCommandHandler(
             request.ProductId,
             cancellationToken);
 
-        var cart = await GetOrCreateCartAsync(customerId, cancellationToken);
+        for (var attempt = 1; attempt <= MaxRetries; attempt++)
+        {
+            try
+            {
+                var cart = await GetOrCreateCartAsync(customerId, cancellationToken);
 
-        AddOrUpdateCartItem(cart, productSnapshot, request.Quantity);
+                var itemWasUpdated = await TryIncrementExistingCartItemAsync(
+                    cart.Id,
+                    productSnapshot,
+                    request.Quantity,
+                    cancellationToken);
 
-        cart.UpdatedAt = DateTime.UtcNow;
+                if (!itemWasUpdated)
+                {
+                    AddNewCartItem(cart.Id, productSnapshot, request.Quantity);
+                }
 
-        await dbContext.SaveChangesAsync(cancellationToken);
+                await TouchCartAsync(cart.Id, cancellationToken);
 
-        logger.LogInformation(
-            "Added cart item for customer {CustomerId} and product {ProductId}",
-            customerId,
-            request.ProductId);
+                await dbContext.SaveChangesAsync(cancellationToken);
 
-        return CartMapper.MapToResponse(cart);
+                logger.LogInformation(
+                    "Added cart item for customer {CustomerId} and product {ProductId}",
+                    customerId,
+                    request.ProductId);
+
+                return await GetCartResponseAsync(customerId, cancellationToken);
+            }
+            catch (DbUpdateException exception) when (IsUniqueConstraintViolation(exception) && attempt < MaxRetries)
+            {
+                logger.LogWarning(
+                    exception,
+                    "Cart item insert conflicted with another request. CustomerId: {CustomerId}, ProductId: {ProductId}, Attempt: {Attempt}",
+                    customerId,
+                    request.ProductId,
+                    attempt);
+
+                dbContext.ChangeTracker.Clear();
+            }
+            catch (DbUpdateConcurrencyException exception) when (attempt < MaxRetries)
+            {
+                logger.LogWarning(
+                    exception,
+                    "Cart update conflicted with another request. CustomerId: {CustomerId}, ProductId: {ProductId}, Attempt: {Attempt}",
+                    customerId,
+                    request.ProductId,
+                    attempt);
+
+                dbContext.ChangeTracker.Clear();
+            }
+        }
+
+        throw new BusinessRuleException("Cart was changed by another request. Please try again.");
     }
 
     private static void ValidateRequest(AddCartItemCommand request)
@@ -94,18 +138,17 @@ public sealed class AddCartItemCommandHandler(
         Guid customerId,
         CancellationToken cancellationToken)
     {
-        var cart = await dbContext.Carts
-            .Include(cart => cart.Items)
+        var existingCart = await dbContext.Carts
             .FirstOrDefaultAsync(
                 cart => cart.CustomerId == customerId,
                 cancellationToken);
 
-        if (cart is not null)
+        if (existingCart is not null)
         {
-            return cart;
+            return existingCart;
         }
 
-        cart = new Domain.Models.Cart
+        var cart = new Domain.Models.Cart
         {
             Id = Guid.NewGuid(),
             CustomerId = customerId,
@@ -118,33 +161,44 @@ public sealed class AddCartItemCommandHandler(
         return cart;
     }
 
-    private static void AddOrUpdateCartItem(
-        Domain.Models.Cart cart,
+    private async Task<bool> TryIncrementExistingCartItemAsync(
+        Guid cartId,
         ProductSnapshot productSnapshot,
-        int quantity)
+        int quantity,
+        CancellationToken cancellationToken)
     {
-        var existingItem = cart.Items
-            .FirstOrDefault(cartItem => cartItem.ProductId == productSnapshot.ProductId);
+        var affectedRows = await dbContext.CartItems
+            .Where(cartItem =>
+                cartItem.CartId == cartId &&
+                cartItem.ProductId == productSnapshot.ProductId)
+            .ExecuteUpdateAsync(
+                setters => setters
+                    .SetProperty(
+                        cartItem => cartItem.ProductNameSnapshot,
+                        productSnapshot.ProductName)
+                    .SetProperty(
+                        cartItem => cartItem.ProductImageUrlSnapshot,
+                        productSnapshot.ProductImageUrl)
+                    .SetProperty(
+                        cartItem => cartItem.UnitPriceSnapshot,
+                        productSnapshot.UnitPrice)
+                    .SetProperty(
+                        cartItem => cartItem.Quantity,
+                        cartItem => cartItem.Quantity + quantity),
+                cancellationToken);
 
-        if (existingItem is null)
-        {
-            AddNewCartItem(cart, productSnapshot, quantity);
-
-            return;
-        }
-
-        UpdateExistingCartItem(existingItem, productSnapshot, quantity);
+        return affectedRows > 0;
     }
 
-    private static void AddNewCartItem(
-        Domain.Models.Cart cart,
+    private void AddNewCartItem(
+        Guid cartId,
         ProductSnapshot productSnapshot,
         int quantity)
     {
-        cart.Items.Add(new CartItem
+        dbContext.CartItems.Add(new CartItem
         {
             Id = Guid.NewGuid(),
-            CartId = cart.Id,
+            CartId = cartId,
             ProductId = productSnapshot.ProductId,
             ProductNameSnapshot = productSnapshot.ProductName,
             ProductImageUrlSnapshot = productSnapshot.ProductImageUrl,
@@ -153,14 +207,36 @@ public sealed class AddCartItemCommandHandler(
         });
     }
 
-    private static void UpdateExistingCartItem(
-        CartItem existingItem,
-        ProductSnapshot productSnapshot,
-        int quantity)
+    private async Task TouchCartAsync(
+        Guid cartId,
+        CancellationToken cancellationToken)
     {
-        existingItem.ProductNameSnapshot = productSnapshot.ProductName;
-        existingItem.ProductImageUrlSnapshot = productSnapshot.ProductImageUrl;
-        existingItem.UnitPriceSnapshot = productSnapshot.UnitPrice;
-        existingItem.Quantity += quantity;
+        await dbContext.Carts
+            .Where(cart => cart.Id == cartId)
+            .ExecuteUpdateAsync(
+                setters => setters.SetProperty(
+                    cart => cart.UpdatedAt,
+                    DateTime.UtcNow),
+                cancellationToken);
+    }
+
+    private async Task<CartResponse> GetCartResponseAsync(
+        Guid customerId,
+        CancellationToken cancellationToken)
+    {
+        var cart = await dbContext.Carts
+            .AsNoTracking()
+            .Include(cart => cart.Items)
+            .FirstAsync(
+                cart => cart.CustomerId == customerId,
+                cancellationToken);
+
+        return CartMapper.MapToResponse(cart);
+    }
+
+    private static bool IsUniqueConstraintViolation(DbUpdateException exception)
+    {
+        return exception.InnerException is SqlException sqlException &&
+            sqlException.Number is SqlUniqueConstraintViolation or SqlUniqueIndexViolation;
     }
 }
